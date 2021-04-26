@@ -2,16 +2,18 @@ import Link from 'next/link';
 import React, {ReactElement, useEffect, useRef, useState} from 'react';
 import Head from 'next/head';
 import Layout from '../components/layout';
-import FaceMesh from "../public/ts/FaceMesh";
 import VideoRenderer from "../public/ts/VideoRenderer";
 import AblyMessaging from "../public/ts/AblyMessaging";
 
 interface Props {
 }
 
+const videoWidth = 100
+
 export default function VideoRoom({}: Props): ReactElement {
     const renderOutputRef = useRef(null);
     const videoRef = useRef<HTMLVideoElement>(null);
+    const [videoIsRunning, setVideoIsRunning] = useState(true);
     const videoRenderer = useRef<VideoRenderer>(null);
     const messaging = useRef<AblyMessaging>(null);
     const [callButtonEnabled, setCallButtonEnabled] = useState(true);
@@ -37,6 +39,7 @@ export default function VideoRoom({}: Props): ReactElement {
 
             // webrtc = new WebRTC(videoRef);
 
+            videoRenderer.current.renderKeypoints()
             setCallButtonEnabled(true)
         })();
     }, []);
@@ -53,12 +56,13 @@ export default function VideoRoom({}: Props): ReactElement {
         setHangUpButtonEnabled(false);
     };
 
-    const renderKeypointsHandler = async () => {
-        videoRenderer.current.renderKeypoints()
-    }
-
-    const stopRenderingHandler = async() => {
-        videoRenderer.current.renderStop()
+    const toggleVideoIsRunning = async () => {
+        if (!videoIsRunning) {
+            videoRenderer.current.renderKeypoints()
+        } else {
+            videoRenderer.current.renderStop()
+        }
+        setVideoIsRunning(!videoIsRunning)
     }
 
     // // TODO
@@ -70,33 +74,33 @@ export default function VideoRoom({}: Props): ReactElement {
         <Layout>
             <Head>
                 <title>WebRTC Video Room</title>
+                <script src="https://unpkg.com/@tensorflow-models/face-landmarks-detection@0.0.1/dist/face-landmarks-detection.js"></script>
             </Head>
             <div className='container'>
-                <h1>Only you see reality,</h1>
+                <h1>Only you see you:</h1>
                 <video
                     playsInline
                     autoPlay
                     loop
-                    width={500}
+                    width={videoWidth}
                     muted
                     ref={videoRef}
                 ></video>
-                <button onClick={callHandler} disabled={!callButtonEnabled}>
-                    Call
-                </button>
-                <button onClick={hangUpHandler} disabled={!hangUpButtonEnabled}>
-                    Hang up
-                </button>
-                <button onClick={renderKeypointsHandler}>
-                    Render keypoints
-                </button>
-                                <button onClick={stopRenderingHandler}>
-                    Stop render
-                </button>
-                <h1>Others see virtual faces</h1>
+                <h1>Everyone else sees this:</h1>
                 <div style={{width: 500, height: 500}}
                      ref={renderOutputRef}
                 >
+                </div>
+                <div>
+                    <button onClick={callHandler} disabled={!callButtonEnabled}>
+                        Join call
+                    </button>
+                    <button onClick={hangUpHandler} disabled={!hangUpButtonEnabled}>
+                        Hang up
+                    </button>
+                    <button onClick={toggleVideoIsRunning}>
+                        {videoIsRunning ? "Pause tracking" : "Resume tracking"}
+                    </button>
                 </div>
                 <Link href='/'>
                     <a>Quit</a>

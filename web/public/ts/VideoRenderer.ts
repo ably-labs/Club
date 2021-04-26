@@ -20,6 +20,7 @@ export default class VideoRenderer {
     renderId: number | null = null
     private width: number;
     private faceMesh: FaceMesh;
+    private isRunning: Boolean
 
     constructor(videoElement: HTMLVideoElement, outputElement: HTMLDivElement, width = 400) {
         this.videoElement = videoElement
@@ -33,7 +34,7 @@ export default class VideoRenderer {
         outputElement.appendChild(this.renderer.domElement)
     }
 
-    async initialize() {
+    initialize = async () => {
         await this.faceMesh.initialize()
         const constraints = {video: true};
         const mediaStream = await navigator.mediaDevices.getUserMedia(
@@ -42,44 +43,28 @@ export default class VideoRenderer {
         this.videoElement.srcObject = mediaStream;
     }
 
-    async renderKeypoints() {
+    renderKeypoints = () => {
         this.renderStop();
+        this.isRunning = true
         this.renderStart();
     }
 
-    private renderFaceMesh(predictions: Array<AnnotatedPrediction>) {
-        const firstFaceOutput = predictions[0]
-        const allCoordinates = firstFaceOutput.scaledMesh as Coords3D
-        const geometry = new BufferGeometry()
-
-        // Convert allCoordinates into 1-d array.
-        const coordinates1D = new Float32Array(allCoordinates.length * 3);
-        for (let i = 0; i < allCoordinates.length * 3; i++) {
-            const meshCoordinateNumber = Math.floor(i / 3)
-            const xYZIndex = i % 3
-            coordinates1D[i] = (allCoordinates[meshCoordinateNumber][xYZIndex] - (this.width / 2)) / this.width
-        }
-        geometry.setAttribute('position', new BufferAttribute(coordinates1D, 3))
-
-        let material = new PointsMaterial({color: 0xFFFFFF, size: 0.02})
-        const meshPoints = new Points(geometry, material)
-        this.scene.add(meshPoints)
-    }
-
-    renderStart() {
+    private renderStart() {
         if (!this.renderId) {
             this.renderId = window.requestAnimationFrame(this.renderLoop)
         }
     }
 
-    renderLoop = async () => {
+    private renderLoop = async () => {
+        if (!this.isRunning) {
+            return
+        }
         this.renderId = null
         if (this.videoElement.readyState == 4) { // https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/readyState
             // Clear existing items in scene
             this.scene.remove.apply(this.scene, this.scene.children)
 
             const predictions: Array<AnnotatedPrediction> = await this.faceMesh.getKeypointsFromImage(this.videoElement)
-            console.log({predictions})
             if (predictions.length == 0) {
                 console.warn("No faces found...")
             } else if (predictions.length > 0) {
@@ -103,7 +88,28 @@ export default class VideoRenderer {
         this.renderStart()
     }
 
+        private renderFaceMesh(predictions: Array<AnnotatedPrediction>) {
+        const firstFaceOutput = predictions[0]
+        const allCoordinates = firstFaceOutput.scaledMesh as Coords3D
+        const geometry = new BufferGeometry()
+
+        // Convert allCoordinates into 1-d array.
+        const coordinates1D = new Float32Array(allCoordinates.length * 3);
+        for (let i = 0; i < allCoordinates.length * 3; i++) {
+            const meshCoordinateNumber = Math.floor(i / 3)
+            const xYZIndex = i % 3
+            coordinates1D[i] = (allCoordinates[meshCoordinateNumber][xYZIndex] - (this.width / 2)) / this.width
+        }
+        geometry.setAttribute('position', new BufferAttribute(coordinates1D, 3))
+
+        let material = new PointsMaterial({color: 0xFFFFFF, size: 0.02})
+        const meshPoints = new Points(geometry, material)
+        this.scene.add(meshPoints)
+    }
+
     renderStop() {
+        this.isRunning = false
+        console.log(`stopping: ${this.renderId}`)
         if (this.renderId) {
             window.cancelAnimationFrame(this.renderId)
             this.renderId = null

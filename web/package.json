@@ -1,6 +1,6 @@
 {
-  "name": "learn-starter",
-  "version": "0.1.0",
+  "name": "skelly",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "NODE_OPTIONS='--inspect' next dev",
@@ -9,8 +9,8 @@
   },
   "dependencies": {
     "@tensorflow-models/face-landmarks-detection": "^0.0.3",
-    "@tensorflow/tfjs-backend-webgl": "^3.4.0",
-    "@tensorflow/tfjs-core": "^3.4.0",
+    "@tensorflow/tfjs-backend-webgl": "^3.5.0",
+    "@tensorflow/tfjs-core": "^3.5.0",
     "ably": "^1.2.9",
     "next": "^10.0.0",
     "react": "17.0.1",

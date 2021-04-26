@@ -13,7 +13,7 @@ export default class FaceMesh {
         console.log("Creating face mesh model...")
     }
 
-    async initialize() {
+    initialize = async () => {
         // See load function for configuration object parameters
         const modelConfig = {
             maxFaces: 1,
@@ -25,7 +25,7 @@ export default class FaceMesh {
         );
     }
 
-    async getKeypointsFromImage(video: HTMLVideoElement): Promise<AnnotatedPrediction[]> {
+    getKeypointsFromImage = async (video: HTMLVideoElement): Promise<AnnotatedPrediction[]> => {
         const estimateFacesConfig: EstimateFacesConfig = {
             input: video
         }

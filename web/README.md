@@ -1,1 +1,3 @@
-This is a starter template for [Learn Next.js](https://nextjs.org/learn).
+# Skelly-web
+
+Client application built with [NextJS](https://nextjs.org/).

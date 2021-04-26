@@ -14,7 +14,6 @@ export default function VideoRoom({}: Props): ReactElement {
     const videoRef = useRef<HTMLVideoElement>(null);
     const videoRenderer = useRef<VideoRenderer>(null);
     const messaging = useRef<AblyMessaging>(null);
-    const faceMeshRef = useRef<FaceMesh>(null);
     const [callButtonEnabled, setCallButtonEnabled] = useState(true);
     const [hangUpButtonEnabled, setHangUpButtonEnabled] = useState(false);
 
@@ -25,9 +24,6 @@ export default function VideoRoom({}: Props): ReactElement {
 
             videoRenderer.current = new VideoRenderer(videoRef.current, renderOutputRef.current)
             await videoRenderer.current.initialize()
-
-            faceMeshRef.current = new FaceMesh()
-            await faceMeshRef.current.initialize()
 
             messaging.current = new AblyMessaging()
             await messaging.current.initialize()
@@ -58,9 +54,7 @@ export default function VideoRoom({}: Props): ReactElement {
     };
 
     const renderKeypointsHandler = async () => {
-        console.log({facemesh: faceMeshRef.current})
-        const predictions = await faceMeshRef.current.getKeypointsFromImage(videoRef.current)
-        videoRenderer.current.renderKeypoints(predictions)
+        videoRenderer.current.renderKeypoints()
     }
 
     const stopRenderingHandler = async() => {

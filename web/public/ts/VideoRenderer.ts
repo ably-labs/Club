@@ -1,5 +1,16 @@
 import {AnnotatedPrediction} from "@tensorflow-models/face-landmarks-detection/dist/mediapipe-facemesh";
-import {BoxGeometry, Camera, MeshBasicMaterial, PerspectiveCamera, Scene, WebGLRenderer, Mesh} from "three";
+import {
+    BufferAttribute,
+    BufferGeometry,
+    Camera,
+    PerspectiveCamera,
+    Points,
+    PointsMaterial,
+    Scene,
+    WebGLRenderer
+} from "three";
+import {Coords3D} from "@tensorflow-models/face-landmarks-detection/dist/mediapipe-facemesh/util";
+import FaceMesh from "./FaceMesh";
 
 export default class VideoRenderer {
     videoElement: HTMLVideoElement
@@ -7,18 +18,23 @@ export default class VideoRenderer {
     camera: Camera
     renderer: WebGLRenderer
     renderId: number | null = null
+    private width: number;
+    private faceMesh: FaceMesh;
 
-    constructor(videoElement: HTMLVideoElement, outputElement: HTMLDivElement) {
+    constructor(videoElement: HTMLVideoElement, outputElement: HTMLDivElement, width = 400) {
         this.videoElement = videoElement
         this.scene = new Scene();
         this.camera = new PerspectiveCamera();
         this.renderer = new WebGLRenderer();
-        this.renderer.setSize(400, 400);
+        this.width = width;
+        this.renderer.setSize(width, width);
+        this.faceMesh = new FaceMesh()
         outputElement.innerHTML = ""
         outputElement.appendChild(this.renderer.domElement)
     }
 
     async initialize() {
+        await this.faceMesh.initialize()
         const constraints = {video: true};
         const mediaStream = await navigator.mediaDevices.getUserMedia(
             constraints
@@ -26,20 +42,28 @@ export default class VideoRenderer {
         this.videoElement.srcObject = mediaStream;
     }
 
-    renderKeypoints(predictions: AnnotatedPrediction[]) {
-        console.log({predictions})
-        // TODO render 3d points from predictions
-
-        const geometry = new BoxGeometry();
-        const material = new MeshBasicMaterial({color: 0x00ff00});
-        const cube = new Mesh(geometry, material)
-        this.scene.remove.apply(this.scene, this.scene.children)
-        this.scene.add(cube)
-        this.camera.position.z = 2
-        this.renderer.render(this.scene, this.camera);
-
+    async renderKeypoints() {
         this.renderStop();
         this.renderStart();
+    }
+
+    private renderFaceMesh(predictions: Array<AnnotatedPrediction>) {
+        const firstFaceOutput = predictions[0]
+        const allCoordinates = firstFaceOutput.scaledMesh as Coords3D
+        const geometry = new BufferGeometry()
+
+        // Convert allCoordinates into 1-d array.
+        const coordinates1D = new Float32Array(allCoordinates.length * 3);
+        for (let i = 0; i < allCoordinates.length * 3; i++) {
+            const meshCoordinateNumber = Math.floor(i / 3)
+            const xYZIndex = i % 3
+            coordinates1D[i] = (allCoordinates[meshCoordinateNumber][xYZIndex] - (this.width / 2)) / this.width
+        }
+        geometry.setAttribute('position', new BufferAttribute(coordinates1D, 3))
+
+        let material = new PointsMaterial({color: 0xFFFFFF, size: 0.02})
+        const meshPoints = new Points(geometry, material)
+        this.scene.add(meshPoints)
     }
 
     renderStart() {
@@ -48,14 +72,34 @@ export default class VideoRenderer {
         }
     }
 
-    renderLoop = () => {
+    renderLoop = async () => {
         this.renderId = null
-        // TODO animate
-        console.log("Rendering....")
-        const oldPosition = this.camera.position.z
-        this.camera.position.z = this.camera.position.z + 0.01
+        if (this.videoElement.readyState == 4) { // https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/readyState
+            // Clear existing items in scene
+            this.scene.remove.apply(this.scene, this.scene.children)
+
+            const predictions: Array<AnnotatedPrediction> = await this.faceMesh.getKeypointsFromImage(this.videoElement)
+            console.log({predictions})
+            if (predictions.length == 0) {
+                console.warn("No faces found...")
+            } else if (predictions.length > 0) {
+                this.renderFaceMesh(predictions);
+            }
+        } else {
+            console.log("Video element not ready, skipping frame.")
+        }
+
+        // Setup camera nicely
+        this.camera.position.z = 2
+        // this.camera.rotation.x = 180
+        this.camera.rotation.set(0, 0, 135)
+
         this.renderer.render(this.scene, this.camera);
-        console.log(`Old position: ${oldPosition}, New position: ${this.camera.position.z }`)
+
+        // TODO animate
+        // const oldPosition = this.camera.position.z
+        // this.camera.position.z = this.camera.position.z + 0.01
+        this.renderer.render(this.scene, this.camera);
         this.renderStart()
     }
 

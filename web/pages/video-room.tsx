@@ -3,7 +3,7 @@ import React, {ReactElement, useEffect, useRef, useState} from 'react';
 import Head from 'next/head';
 import Layout from '../components/layout';
 import VideoRenderer from "../public/ts/VideoRenderer";
-import AblyMessaging from "../public/ts/AblyMessaging";
+import Messaging from "../public/ts/Messaging";
 
 interface Props {
 }
@@ -15,7 +15,7 @@ export default function VideoRoom({}: Props): ReactElement {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [videoIsRunning, setVideoIsRunning] = useState(true);
     const videoRenderer = useRef<VideoRenderer>(null);
-    const messaging = useRef<AblyMessaging>(null);
+    const messaging = useRef<Messaging>(null);
     const [callButtonEnabled, setCallButtonEnabled] = useState(true);
     const [hangUpButtonEnabled, setHangUpButtonEnabled] = useState(false);
 
@@ -26,13 +26,11 @@ export default function VideoRoom({}: Props): ReactElement {
 
             videoRenderer.current = new VideoRenderer(videoRef.current, renderOutputRef.current)
             await videoRenderer.current.initialize()
+            console.log("Facemesh initialization complete")
 
-            messaging.current = new AblyMessaging()
+            messaging.current = new Messaging()
             await messaging.current.initialize()
-            console.log("Facemesh and messaging initialization complete")
-
-            // TODO signalling
-            // const socketio = new SocketIOClient();
+            console.log("messaging initialization complete")
 
             // Add me to the room
             // socketio.joinRoom();
@@ -44,8 +42,8 @@ export default function VideoRoom({}: Props): ReactElement {
         })();
     }, []);
 
-    const callHandler = () => {
-        console.log('Call pressed');
+    const joinCallHandler = () => {
+        console.log('Call started');
         setCallButtonEnabled(false);
         setHangUpButtonEnabled(true);
     };
@@ -56,7 +54,7 @@ export default function VideoRoom({}: Props): ReactElement {
         setHangUpButtonEnabled(false);
     };
 
-    const toggleVideoIsRunning = async () => {
+    const toggleTracking = async () => {
         if (!videoIsRunning) {
             videoRenderer.current.renderKeypoints()
         } else {
@@ -92,13 +90,13 @@ export default function VideoRoom({}: Props): ReactElement {
                 >
                 </div>
                 <div>
-                    <button onClick={callHandler} disabled={!callButtonEnabled}>
+                    <button onClick={joinCallHandler} disabled={!callButtonEnabled}>
                         Join call
                     </button>
                     <button onClick={hangUpHandler} disabled={!hangUpButtonEnabled}>
                         Hang up
                     </button>
-                    <button onClick={toggleVideoIsRunning}>
+                    <button onClick={toggleTracking}>
                         {videoIsRunning ? "Pause tracking" : "Resume tracking"}
                     </button>
                 </div>

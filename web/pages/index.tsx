@@ -5,17 +5,19 @@ export default function Home() {
   return (
     <div className='container'>
       <Head>
-        <title>Loc</title>
+        <title>Anonymous Calls</title>
         <link rel='icon' href='/favicon.ico' />
       </Head>
 
       <main>
-        <h1 className='title'>
-          Click to go to{' '}
+          <label className="text-lg" htmlFor={"username"}>What is your preferred name:</label>
+          <input name={"username"} enterKeyHint={"enter"} placeholder={"Bob"} aria-label={"Enter a username..."} required={true}/>
+        <p className="text-2xl">
+            Hello
           <Link href='/video-room/'>
-            <a>Video Room</a>
+            <a>Join Video Room</a>
           </Link>
-        </h1>
+        </p>
       </main>
 
       <footer>by Ben Butterworth</footer>
@@ -137,10 +139,6 @@ export default function Home() {
           margin: 0;
           font-size: 1.25rem;
           line-height: 1.5;
-        }
-
-        .logo {
-          height: 1em;
         }
 
         @media (max-width: 600px) {

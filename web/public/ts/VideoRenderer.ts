@@ -1,16 +1,15 @@
-import {AnnotatedPrediction} from "@tensorflow-models/face-landmarks-detection/dist/mediapipe-facemesh";
 import {
+    BoxGeometry,
     BufferAttribute,
     BufferGeometry,
-    Camera,
-    PerspectiveCamera,
+    Camera, Mesh, MeshBasicMaterial, OrthographicCamera,
     Points,
     PointsMaterial,
     Scene,
     WebGLRenderer
 } from "three";
-import {Coords3D} from "@tensorflow-models/face-landmarks-detection/dist/mediapipe-facemesh/util";
-import FaceMesh from "./FaceMesh";
+import FaceMeshCalculator from "./FaceMeshCalculator";
+import {NormalizedLandmark, NormalizedLandmarkList} from "@mediapipe/face_mesh";
 
 export default class VideoRenderer {
     videoElement: HTMLVideoElement
@@ -18,18 +17,20 @@ export default class VideoRenderer {
     camera: Camera
     renderer: WebGLRenderer
     renderId: number | null = null
-    private width: number;
-    private faceMesh: FaceMesh;
+    private faceMesh: FaceMeshCalculator;
+    private readonly height;
+    private readonly width;
     private isRunning: Boolean
 
-    constructor(videoElement: HTMLVideoElement, outputElement: HTMLDivElement, width = 400) {
+    constructor(videoElement: HTMLVideoElement, outputElement: HTMLDivElement, width = 680, height = 480) {
         this.videoElement = videoElement
         this.scene = new Scene();
-        this.camera = new PerspectiveCamera();
-        this.renderer = new WebGLRenderer();
+        this.height = height;
         this.width = width;
-        this.renderer.setSize(width, width);
-        this.faceMesh = new FaceMesh()
+        this.camera = new OrthographicCamera(0, width, height, 0);
+        this.renderer = new WebGLRenderer();
+        this.renderer.setSize(width, height);
+        this.faceMesh = new FaceMeshCalculator(this.renderFace)
         outputElement.innerHTML = ""
         outputElement.appendChild(this.renderer.domElement)
     }
@@ -41,6 +42,10 @@ export default class VideoRenderer {
             constraints
         );
         this.videoElement.srcObject = mediaStream;
+    }
+
+    renderFace = (faceLandmarks: NormalizedLandmark[]) => {
+        this.renderFaceMesh(faceLandmarks)
     }
 
     renderKeypoints = () => {
@@ -64,20 +69,15 @@ export default class VideoRenderer {
             // Clear existing items in scene
             this.scene.remove.apply(this.scene, this.scene.children)
 
-            const predictions: Array<AnnotatedPrediction> = await this.faceMesh.getKeypointsFromImage(this.videoElement)
-            if (predictions.length == 0) {
-                console.warn("No faces found...")
-            } else if (predictions.length > 0) {
-                this.renderFaceMesh(predictions);
-            }
+            await this.faceMesh.send({image: this.videoElement})
         } else {
             console.log("Video element not ready, skipping frame.")
         }
 
         // Setup camera nicely
-        this.camera.position.z = 2
-        // this.camera.rotation.x = 180
-        this.camera.rotation.set(0, 0, 135)
+        this.camera.position.z = 3
+        // this.camera.rotation.z = 180
+        // this.camera.rotation.set(0, 0, 135)
 
         this.renderer.render(this.scene, this.camera);
 
@@ -88,21 +88,47 @@ export default class VideoRenderer {
         this.renderStart()
     }
 
-        private renderFaceMesh(predictions: Array<AnnotatedPrediction>) {
-        const firstFaceOutput = predictions[0]
-        const allCoordinates = firstFaceOutput.scaledMesh as Coords3D
-        const geometry = new BufferGeometry()
-
+    private renderFaceMesh(normalizedLandmarks: NormalizedLandmark[]) {
         // Convert allCoordinates into 1-d array.
-        const coordinates1D = new Float32Array(allCoordinates.length * 3);
-        for (let i = 0; i < allCoordinates.length * 3; i++) {
+        const geometry = new BufferGeometry()
+        const coordinates1D = new Float32Array(normalizedLandmarks.length * 3);
+        for (let i = 0; i < normalizedLandmarks.length * 3; i++) {
             const meshCoordinateNumber = Math.floor(i / 3)
             const xYZIndex = i % 3
-            coordinates1D[i] = (allCoordinates[meshCoordinateNumber][xYZIndex] - (this.width / 2)) / this.width
+            // Roughly resizing it
+            if (xYZIndex === 0) {
+                coordinates1D[i] = normalizedLandmarks[meshCoordinateNumber][xYZIndex] - (this.width / 2)
+            } else if (xYZIndex === 1) {
+                coordinates1D[i] = normalizedLandmarks[meshCoordinateNumber][xYZIndex] - (this.height / 2)
+            } else {
+                coordinates1D[i] = normalizedLandmarks[meshCoordinateNumber][xYZIndex]
+            }
+            // coordinates1D[i] = (allCoordinates[meshCoordinateNumber][xYZIndex] - (this.renderer.width / 2)) / this.renderer.width
+            // coordinates1D[i] =  allCoordinates[meshCoordinateNumber][xYZIndex]
         }
         geometry.setAttribute('position', new BufferAttribute(coordinates1D, 3))
 
-        let material = new PointsMaterial({color: 0xFFFFFF, size: 0.02})
+
+        const vertices = new Float32Array( [
+            50, 50, 0,
+            100, 100,  1.0,
+            200,  200,  2.0,
+
+            1.0,  1.0,  1.0,
+            -1.0,  1.0,  1.0,
+            -1.0, -1.0,  1.0
+        ] );
+        const verticesGeometry = new BufferGeometry()
+        verticesGeometry.setAttribute('position', new BufferAttribute(vertices, 3));
+        let verticesMaterial = new PointsMaterial({color: 0xFFFFFF, size: 10});
+        this.scene.add(new Points(verticesGeometry, verticesMaterial))
+
+        const boxGeometry = new BoxGeometry(2, 1);
+        const boxMaterial = new MeshBasicMaterial({color: 0x0_0ff00});
+        const cube = new Mesh(boxGeometry, boxMaterial);
+        this.scene.add(cube);
+
+        let material = new PointsMaterial({color: 0xFFFFFF, size: 2});
         const meshPoints = new Points(geometry, material)
         this.scene.add(meshPoints)
     }

@@ -11,6 +11,7 @@ interface Props {
 const videoWidth = 100
 
 export default function VideoRoom({}: Props): ReactElement {
+    const [currentUsers, setCurrentUsers] = useState(["bob", "sam", "july"])
     const renderOutputRef = useRef(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const [videoIsRunning, setVideoIsRunning] = useState(true);
@@ -32,26 +33,27 @@ export default function VideoRoom({}: Props): ReactElement {
             await messaging.current.initialize()
             console.log("messaging initialization complete")
 
-            // Add me to the room
-            // socketio.joinRoom();
-
-            // webrtc = new WebRTC(videoRef);
-
             videoRenderer.current.renderKeypoints()
             setCallButtonEnabled(true)
         })();
     }, []);
 
-    const joinCallHandler = () => {
+    const joinCallHandler = async () => {
         console.log('Call started');
         setCallButtonEnabled(false);
         setHangUpButtonEnabled(true);
+
+        // Add me to the room
+        await messaging.current.joinRoom();
+
+        // webrtc = new WebRTC(videoRef);
     };
 
-    const hangUpHandler = () => {
+    const hangUpHandler = async () => {
         console.log('Call killed');
         setCallButtonEnabled(true);
         setHangUpButtonEnabled(false);
+        await messaging.current.exitRoom()
     };
 
     const toggleTracking = async () => {
@@ -99,6 +101,12 @@ export default function VideoRoom({}: Props): ReactElement {
                     <button onClick={toggleTracking}>
                         {videoIsRunning ? "Pause tracking" : "Resume tracking"}
                     </button>
+                </div>
+                <div>
+                    <h2>Users in the room:</h2>
+                    <ul>
+                        {currentUsers.map(user => <li key={user}>{user}</li>)}
+                    </ul>
                 </div>
                 <Link href='/'>
                     <a>Quit</a>

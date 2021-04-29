@@ -1,36 +1,23 @@
 import Head from 'next/head';
 import Link from 'next/link';
-import {useState} from "react";
 
 export default function Home() {
-    const [name, setName] = useState('')
+    return (
+        <div className='container'>
+            <Head>
+                <title>Anonymous Calls</title>
+                <link rel='icon' href='/favicon.ico'/>
+            </Head>
 
-    const onChangeName = (event) => {
-        setName(event.target.value)
-    }
-  return (
-    <div className='container'>
-      <Head>
-        <title>Anonymous Calls</title>
-        <link rel='icon' href='/favicon.ico' />
-      </Head>
+            <main>
+                <Link href='/video-room/'>
+                    <a>Join Video Room</a>
+                </Link>
+            </main>
 
-      <main>
-          <label className="text-lg" htmlFor={"username"}>What is your preferred name:</label>
-          <input value={name} onChange={onChangeName} name={"username"} enterKeyHint={"enter"} placeholder={"Bob"} aria-label={"Enter a username..."} required={true}/>
-        <p className="text-2xl">
-          <Link href={{
-              pathname:'/video-room/',
-              query: {name: name}
-          }} >
-            <a>Join Video Room</a>
-          </Link>
-        </p>
-      </main>
+            <footer>by Ben Butterworth</footer>
 
-      <footer>by Ben Butterworth</footer>
-
-      <style jsx>{`
+            <style jsx>{`
         .container {
           min-height: 100vh;
           padding: 0 0.5rem;
@@ -157,7 +144,7 @@ export default function Home() {
         }
       `}</style>
 
-      <style jsx global>{`
+            <style jsx global>{`
         html,
         body {
           padding: 0;
@@ -171,6 +158,6 @@ export default function Home() {
           box-sizing: border-box;
         }
       `}</style>
-    </div>
-  );
+        </div>
+    );
 }

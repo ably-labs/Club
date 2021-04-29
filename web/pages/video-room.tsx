@@ -6,28 +6,21 @@ import VideoRenderer from "../public/ts/VideoRenderer";
 import Messaging, {CallState} from "../public/ts/Messaging";
 import CallStateDisplay from "../public/ts/CallStateDisplay";
 import {useRouter} from "next/router";
-import { v4 as uuidv4 } from 'uuid';
 
 interface Props {
-}
-
-interface RouterParams {
     name: string
 }
 
-const videoWidth = 100
+
+const ORIGINAL_VIDEO_WIDTH = 100
+
+VideoRoom.getInitialProps = ({query: {name}}) => {
+    return {name}
+}
 
 export default function VideoRoom({}: Props): ReactElement {
-    const {query} = useRouter()
-    const name = (() => {
-        const {name} = query as unknown as RouterParams
-        if (name) {
-            return name;
-        } else {
-            return uuidv4();
-        }
-    })()
-
+    const [usernameField, setUsernameField] = useState('')
+    const [username, setUsername] = useState('')
     const [callState, setCallState] = useState<CallState>({
         connection: "disconnected",
         currentUsers: []
@@ -41,6 +34,10 @@ export default function VideoRoom({}: Props): ReactElement {
     const [callButtonEnabled, setCallButtonEnabled] = useState(true);
     const [hangUpButtonEnabled, setHangUpButtonEnabled] = useState(false);
 
+    const onChangeName = (event) => {
+        setUsernameField(event.target.value)
+    }
+
     const loadCameraFeed = async (videoElement: HTMLVideoElement): Promise<HTMLVideoElement> => {
         videoElement.srcObject = await navigator.mediaDevices.getUserMedia({
             video: true
@@ -51,8 +48,8 @@ export default function VideoRoom({}: Props): ReactElement {
     useEffect(() => {
         setCallButtonEnabled(false)
         setHangUpButtonEnabled(false)
+        messagingRef.current = new Messaging(username, setCallState);
         videoRenderer.current = new VideoRenderer(videoRef.current, renderOutputRef.current, fpsCounter.current);
-        messagingRef.current = new Messaging(name, setCallState);
         (async () => {
             videoRenderer.current.videoElement = await loadCameraFeed(videoRef.current);
             setCallButtonEnabled(true)
@@ -62,6 +59,11 @@ export default function VideoRoom({}: Props): ReactElement {
             videoRenderer.current.dispose()
         }
     }, []);
+
+    const connect = async () => {
+        setUsername(usernameField)
+        messagingRef.current.setUsername(usernameField)
+    }
 
     const joinCallHandler = async () => {
         setCallButtonEnabled(false);
@@ -90,12 +92,19 @@ export default function VideoRoom({}: Props): ReactElement {
                 <title>WebRTC Video Room</title>
             </Head>
             <div className='container'>
-                <h1>Only you see you, {(name && name.length > 0) ? name : "anonymous"}:</h1>
+                <div>
+                    <label className="text-lg" htmlFor={"usernameField"}>What is your preferred name:</label>
+                    <input value={usernameField} onChange={onChangeName} name={"usernameField"} enterKeyHint={"enter"}
+                           placeholder={"Bob"}
+                           aria-label={"Enter a username..."} required={true}/>
+                    <button onClick={connect}>Connect</button>
+                </div>
+                <h1>Only you see you, {(username && username.length > 0) ? username : "anonymous"}:</h1>
                 <video
                     playsInline
                     autoPlay
                     loop
-                    width={videoWidth}
+                    width={ORIGINAL_VIDEO_WIDTH}
                     muted
                     ref={videoRef}
                 ></video>

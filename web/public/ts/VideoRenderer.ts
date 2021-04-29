@@ -29,9 +29,6 @@ export default class VideoRenderer {
 
     constructor(videoElement: HTMLVideoElement, outputElement: HTMLDivElement, fpsOutput: HTMLParagraphElement, viewSize = 900, width = 680, height = 480) {
         this.videoElement = videoElement;
-        if (!this.videoElement.srcObject) {
-            console.error("HTML Video element has no source object.")
-        }
         outputElement.innerHTML = "";
         this.fpsOutput = fpsOutput;
         this.viewSize = viewSize
@@ -54,6 +51,9 @@ export default class VideoRenderer {
      * Call this to start the rendering
      */
     startRender = () => {
+        if (!this.videoElement.srcObject) {
+            console.error("HTML Video element has no source object.")
+        }
         this.stopRender();
         this.isRunning = true
         this.renderId = window.requestAnimationFrame(this.renderLoop)
@@ -120,5 +120,11 @@ export default class VideoRenderer {
         let material = new PointsMaterial({color: 0xFFFFFF, size: 2});
         const meshPoints = new Points(geometry, material)
         this.scene.add(meshPoints)
+    }
+
+    dispose() {
+        console.log("Disposing VideoRenderer now...")
+        this.renderer.dispose()
+        this.stopRender()
     }
 }

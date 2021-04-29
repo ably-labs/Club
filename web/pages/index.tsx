@@ -1,7 +1,13 @@
 import Head from 'next/head';
 import Link from 'next/link';
+import {useState} from "react";
 
 export default function Home() {
+    const [name, setName] = useState('')
+
+    const onChangeName = (event) => {
+        setName(event.target.value)
+    }
   return (
     <div className='container'>
       <Head>
@@ -11,10 +17,12 @@ export default function Home() {
 
       <main>
           <label className="text-lg" htmlFor={"username"}>What is your preferred name:</label>
-          <input name={"username"} enterKeyHint={"enter"} placeholder={"Bob"} aria-label={"Enter a username..."} required={true}/>
+          <input value={name} onChange={onChangeName} name={"username"} enterKeyHint={"enter"} placeholder={"Bob"} aria-label={"Enter a username..."} required={true}/>
         <p className="text-2xl">
-            Hello
-          <Link href='/video-room/'>
+          <Link href={{
+              pathname:'/video-room/',
+              query: {name: name}
+          }} >
             <a>Join Video Room</a>
           </Link>
         </p>

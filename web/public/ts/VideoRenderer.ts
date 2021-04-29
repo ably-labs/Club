@@ -1,16 +1,19 @@
 import {
-    BoxGeometry,
     BufferAttribute,
     BufferGeometry,
-    Camera, Matrix4, Mesh, MeshBasicMaterial, OrthographicCamera,
+    Camera,
+    OrthographicCamera,
     Points,
     PointsMaterial,
     Scene,
     WebGLRenderer
 } from "three";
 import FaceMeshCalculator from "./FaceMeshCalculator";
-import {NormalizedLandmark, NormalizedLandmarkList} from "@mediapipe/face_mesh";
+import {NormalizedLandmark} from "@mediapipe/face_mesh";
 
+/**
+ * Renders video
+ */
 export default class VideoRenderer {
     videoElement: HTMLVideoElement
     scene: Scene
@@ -18,20 +21,25 @@ export default class VideoRenderer {
     renderer: WebGLRenderer
     renderId: number | null = null
     private faceMesh: FaceMeshCalculator;
-    private readonly height;
-    private readonly width;
     private isRunning: Boolean
-    private viewSize: number;
-    private aspectRatio: number;
+    private readonly viewSize: number;
+    private readonly aspectRatio: number;
+    lastLoop = Date.now();
+    private fpsOutput: HTMLParagraphElement;
 
-    constructor(videoElement: HTMLVideoElement, outputElement: HTMLDivElement, viewSize = 900, width = 680, height = 480) {
+    constructor(videoElement: HTMLVideoElement, outputElement: HTMLDivElement, fpsOutput: HTMLParagraphElement, viewSize = 900, width = 680, height = 480) {
+        this.videoElement = videoElement;
+        if (!this.videoElement.srcObject) {
+            console.error("HTML Video element has no source object.")
+        }
+        outputElement.innerHTML = "";
+        this.fpsOutput = fpsOutput;
         this.viewSize = viewSize
         this.aspectRatio = 680 / 480
-
-        this.videoElement = videoElement;
+        this.renderer = new WebGLRenderer({alpha: true});
+        this.renderer.setSize(width, height);
+        outputElement.appendChild(this.renderer.domElement)
         this.scene = new Scene();
-        this.height = height;
-        this.width = width;
         this.camera = new OrthographicCamera(
             -this.aspectRatio * viewSize / 2,
             this.aspectRatio * viewSize / 2,
@@ -39,46 +47,41 @@ export default class VideoRenderer {
             -viewSize / 2,
             -1000,
             1000);
-        // this.camera.rotateZ(Math.PI / 2)
-        // this.camera.position.z = 3
-
-        this.renderer = new WebGLRenderer();
-        this.renderer.setSize(width, height);
-        this.faceMesh = new FaceMeshCalculator(this.renderFace)
-        outputElement.innerHTML = ""
-        outputElement.appendChild(this.renderer.domElement)
+        this.faceMesh = new FaceMeshCalculator(this.updateFaceMesh)
     }
 
-    initialize = async () => {
-        await this.faceMesh.initialize()
-        const constraints = {video: true};
-        const mediaStream = await navigator.mediaDevices.getUserMedia(
-            constraints
-        );
-        this.videoElement.srcObject = mediaStream;
-    }
-
-    renderFace = (faceLandmarks: NormalizedLandmark[]) => {
-        this.renderFaceMesh(faceLandmarks)
-    }
-
-    renderKeypoints = () => {
-        this.renderStop();
+    /**
+     * Call this to start the rendering
+     */
+    startRender = () => {
+        this.stopRender();
         this.isRunning = true
-        this.renderStart();
+        this.renderId = window.requestAnimationFrame(this.renderLoop)
     }
 
-    private renderStart() {
-        if (!this.renderId) {
-            this.renderId = window.requestAnimationFrame(this.renderLoop)
+    /**
+     * Call this to stop rendering, aka. clear the previously requested frame
+     */
+    stopRender() {
+        this.isRunning = false
+        if (this.renderId) {
+            window.cancelAnimationFrame(this.renderId)
+            this.renderId = null
         }
     }
 
+    /**
+     * This function renders the latest face mesh state, which is set by FaceMeshCalculator asynchronously.
+     */
     private renderLoop = async () => {
         if (!this.isRunning) {
             return
         }
-        this.renderId = null
+        const thisLoop = Date.now()
+        const fps = 1000 / (thisLoop - this.lastLoop)
+        this.lastLoop = thisLoop
+        this.fpsOutput.innerText = `${fps.toFixed(0)} FPS`
+
         if (this.videoElement.readyState == 4) { // https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/readyState
             // Clear existing items in scene
             this.scene.remove.apply(this.scene, this.scene.children)
@@ -88,15 +91,15 @@ export default class VideoRenderer {
         }
 
         this.renderer.render(this.scene, this.camera);
-
-        // TODO animate
-        // const oldPosition = this.camera.position.z
-        // this.camera.position.z = this.camera.position.z + 0.01
-        this.renderer.render(this.scene, this.camera);
-        this.renderStart()
+        if (this.renderId) window.cancelAnimationFrame(this.renderId)
+        this.renderId = window.requestAnimationFrame(this.renderLoop)
     }
 
-    private renderFaceMesh(normalizedLandmarks: NormalizedLandmark[]) {
+    /**
+     * Update the face mesh state (in the three.js scene) in this class, which is used in the render loop.
+     * @param normalizedLandmarks All face landmarks for 1 face, generated by the MediaPipe FaceMesh library.
+     */
+    updateFaceMesh = (normalizedLandmarks: NormalizedLandmark[]) => {
         // Convert allCoordinates into 1-d array.
         const geometry = new BufferGeometry()
         const coordinates1D = new Float32Array(normalizedLandmarks.length * 3);
@@ -114,42 +117,8 @@ export default class VideoRenderer {
         geometry.setAttribute('position', new BufferAttribute(coordinates1D, 3))
         geometry.rotateZ(Math.PI)
 
-        // const rotation = new Matrix4().makeRotationZ(Math.PI/2);
-        // geometry.applyMatrix4(rotation)
-
-        // const vertices = new Float32Array([
-        //     0, 0, 0,
-        //     50, 50, 0,
-        //     100, 100, 1.0,
-        //     200, 200, 2.0,
-        // ]);
-        // const verticesGeometry = new BufferGeometry()
-        // verticesGeometry.setAttribute('position', new BufferAttribute(vertices, 3));
-        // let verticesMaterial = new PointsMaterial({color: 0xFFFFFF, size: 10});
-        // // verticesGeometry.rotateZ(0)
-        // this.scene.add(new Points(verticesGeometry, verticesMaterial))
-
-        const boxGeometry = new BoxGeometry(2, 1);
-        const boxMaterial = new MeshBasicMaterial({color: 0x0_0ff00});
-        const cube = new Mesh(boxGeometry, boxMaterial);
-        this.scene.add(cube);
-
         let material = new PointsMaterial({color: 0xFFFFFF, size: 2});
         const meshPoints = new Points(geometry, material)
         this.scene.add(meshPoints)
     }
-
-    renderStop() {
-        this.isRunning = false
-        console.log(`stopping: ${this.renderId}`)
-        if (this.renderId) {
-            window.cancelAnimationFrame(this.renderId)
-            this.renderId = null
-        }
-    }
-
-    // animate() {
-    //     requestAnimationFrame(this.animate)
-    //     this.renderer.render(this.scene, this.camera);
-    // }
 }

@@ -4,6 +4,7 @@ import Head from 'next/head';
 import Layout from '../components/layout';
 import VideoRenderer from "../public/ts/VideoRenderer";
 import Messaging from "../public/ts/Messaging";
+import CallState, {ConnectionState} from "./CallState";
 
 interface Props {
 }
@@ -11,30 +12,37 @@ interface Props {
 const videoWidth = 100
 
 export default function VideoRoom({}: Props): ReactElement {
-    const [currentUsers, setCurrentUsers] = useState(["bob", "sam", "july"])
+    const [callState, setCallState] = useState({
+        connection: "disconnected" as ConnectionState,
+        currentUsers: [] as string[]
+    });
+    const [currentUsers, setCurrentUsers] = useState([]);
     const renderOutputRef = useRef(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const [videoIsRunning, setVideoIsRunning] = useState(true);
     const videoRenderer = useRef<VideoRenderer>(null);
-    const messaging = useRef<Messaging>(null);
+    const messagingRef = useRef<Messaging>(null);
+    const fpsCounter = useRef<HTMLParagraphElement>(null);
     const [callButtonEnabled, setCallButtonEnabled] = useState(true);
     const [hangUpButtonEnabled, setHangUpButtonEnabled] = useState(false);
+
+    const loadCameraFeed = async (videoElement: HTMLVideoElement) => {
+        videoElement.srcObject = await navigator.mediaDevices.getUserMedia({
+            video: true
+        });
+    }
 
     useEffect(() => {
         (async () => {
             setCallButtonEnabled(false)
             setHangUpButtonEnabled(false)
 
-            videoRenderer.current = new VideoRenderer(videoRef.current, renderOutputRef.current)
-            await videoRenderer.current.initialize()
-            console.log("Facemesh initialization complete")
+            await loadCameraFeed(videoRef.current);
+            videoRenderer.current = new VideoRenderer(videoRef.current, renderOutputRef.current, fpsCounter.current)
+            messagingRef.current = new Messaging()
 
-            messaging.current = new Messaging()
-            await messaging.current.initialize()
-            console.log("messaging initialization complete")
-
-            videoRenderer.current.renderKeypoints()
             setCallButtonEnabled(true)
+            videoRenderer.current.startRender()
         })();
     }, []);
 
@@ -43,38 +51,31 @@ export default function VideoRoom({}: Props): ReactElement {
         setCallButtonEnabled(false);
         setHangUpButtonEnabled(true);
 
-        // Add me to the room
-        await messaging.current.joinRoom();
-
-        // webrtc = new WebRTC(videoRef);
+        const currentUsers = await messagingRef.current.joinRoom();
+        setCurrentUsers(currentUsers)
+        // TODO display user list
     };
 
     const hangUpHandler = async () => {
         console.log('Call killed');
         setCallButtonEnabled(true);
         setHangUpButtonEnabled(false);
-        await messaging.current.exitRoom()
+        await messagingRef.current.exitRoom()
     };
 
     const toggleTracking = async () => {
         if (!videoIsRunning) {
-            videoRenderer.current.renderKeypoints()
+            videoRenderer.current.startRender()
         } else {
-            videoRenderer.current.renderStop()
+            videoRenderer.current.stopRender()
         }
         setVideoIsRunning(!videoIsRunning)
     }
-
-    // // TODO
-    // const addIceCandidate = () => {
-    //   // Add ice candidate received from remote, to remote peer description
-    // };
 
     return (
         <Layout>
             <Head>
                 <title>WebRTC Video Room</title>
-                <script src="https://unpkg.com/@tensorflow-models/face-landmarks-detection@0.0.1/dist/face-landmarks-detection.js"></script>
             </Head>
             <div className='container'>
                 <h1>Only you see you:</h1>
@@ -92,6 +93,9 @@ export default function VideoRoom({}: Props): ReactElement {
                 >
                 </div>
                 <div>
+                <p ref={fpsCounter}>FPS</p>
+                </div>
+                <div>
                     <button onClick={joinCallHandler} disabled={!callButtonEnabled}>
                         Join call
                     </button>
@@ -102,12 +106,8 @@ export default function VideoRoom({}: Props): ReactElement {
                         {videoIsRunning ? "Pause tracking" : "Resume tracking"}
                     </button>
                 </div>
-                <div>
-                    <h2>Users in the room:</h2>
-                    <ul>
-                        {currentUsers.map(user => <li key={user}>{user}</li>)}
-                    </ul>
-                </div>
+                {CallState({callState})}
+
                 <Link href='/'>
                     <a>Quit</a>
                 </Link>

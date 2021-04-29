@@ -21,13 +21,9 @@ export default class Messaging {
         })
     }
 
-    async initialize() {
-
-    }
-
     // TODO display existing users
 
-    async joinRoom() {
+    async joinRoom(): Promise<String[]> {
         this.ablyClient.connect()
         const channelOptions: Types.ChannelOptions = {
             params: {
@@ -38,6 +34,9 @@ export default class Messaging {
         this.ablyClient.connection.on('connected', () => {
             console.log("Connected to Ably.")
         })
+
+        // TODO get all users in channel
+        return ["bob", "sam", "july"]
     }
 
     async exitRoom() {

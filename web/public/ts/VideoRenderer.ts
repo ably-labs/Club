@@ -83,11 +83,8 @@ export default class VideoRenderer {
         this.fpsOutput.innerText = `${fps.toFixed(0)} FPS`
 
         if (this.videoElement.readyState == 4) { // https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/readyState
-            // Clear existing items in scene
             this.scene.remove.apply(this.scene, this.scene.children)
             await this.faceMesh.send({image: this.videoElement})
-        } else {
-            console.log("Video element not ready, skipping frame.")
         }
 
         this.renderer.render(this.scene, this.camera);
@@ -107,7 +104,7 @@ export default class VideoRenderer {
             const meshCoordinateNumber = Math.floor(i / 3)
             const xYZIndex = i % 3
             if (xYZIndex === 0) {
-                coordinates1D[i] = (normalizedLandmarks[meshCoordinateNumber].x - 0.5) * this.aspectRatio * this.viewSize
+                coordinates1D[i] = -(normalizedLandmarks[meshCoordinateNumber].x - 0.5) * this.aspectRatio * this.viewSize
             } else if (xYZIndex === 1) {
                 coordinates1D[i] = (normalizedLandmarks[meshCoordinateNumber].y - 0.5) * this.viewSize
             } else {
@@ -126,5 +123,6 @@ export default class VideoRenderer {
         console.log("Disposing VideoRenderer now...")
         this.renderer.dispose()
         this.stopRender()
+        this.faceMesh.close()
     }
 }

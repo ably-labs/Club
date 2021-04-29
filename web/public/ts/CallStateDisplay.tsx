@@ -1,15 +1,12 @@
 import React from "react";
+import {CallState} from "./Messaging";
 
-export type ConnectionState = "connected" | "disconnected"
 
 interface Props {
-    callState: {
-        connection: ConnectionState,
-        currentUsers: string[]
-    }
+    callState: CallState
 }
 
-const CallState = ({callState}: Props) => {
+const CallStateDisplay = ({callState}: Props) => {
     if (callState.connection === "connected") {
         return <div>
             <h2>Users in the room:</h2>
@@ -23,4 +20,4 @@ const CallState = ({callState}: Props) => {
     }
 };
 
-export default CallState
+export default CallStateDisplay

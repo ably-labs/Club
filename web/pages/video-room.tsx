@@ -3,26 +3,35 @@ import React, {ReactElement, useEffect, useRef, useState} from 'react';
 import Head from 'next/head';
 import Layout from '../components/layout';
 import VideoRenderer from "../public/ts/VideoRenderer";
-import Messaging from "../public/ts/Messaging";
-import CallState, {ConnectionState} from "../public/ts/CallState";
+import Messaging, {CallState} from "../public/ts/Messaging";
+import CallStateDisplay from "../public/ts/CallStateDisplay";
 import {useRouter} from "next/router";
+import { v4 as uuidv4 } from 'uuid';
 
 interface Props {
+}
+
+interface RouterParams {
+    name: string
 }
 
 const videoWidth = 100
 
 export default function VideoRoom({}: Props): ReactElement {
-    const router = useRouter()
-    const {
-        query: {name},
-    } = router
+    const {query} = useRouter()
+    const name = (() => {
+        const {name} = query as unknown as RouterParams
+        if (name) {
+            return name;
+        } else {
+            return uuidv4();
+        }
+    })()
 
-    const [callState, setCallState] = useState({
-        connection: "disconnected" as ConnectionState,
-        currentUsers: [] as string[]
+    const [callState, setCallState] = useState<CallState>({
+        connection: "disconnected",
+        currentUsers: []
     });
-    const [currentUsers, setCurrentUsers] = useState([]);
     const renderOutputRef = useRef(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const [videoIsRunning, setVideoIsRunning] = useState(true);
@@ -43,7 +52,7 @@ export default function VideoRoom({}: Props): ReactElement {
         setCallButtonEnabled(false)
         setHangUpButtonEnabled(false)
         videoRenderer.current = new VideoRenderer(videoRef.current, renderOutputRef.current, fpsCounter.current);
-        messagingRef.current = new Messaging();
+        messagingRef.current = new Messaging(name, setCallState);
         (async () => {
             videoRenderer.current.videoElement = await loadCameraFeed(videoRef.current);
             setCallButtonEnabled(true)
@@ -55,16 +64,12 @@ export default function VideoRoom({}: Props): ReactElement {
     }, []);
 
     const joinCallHandler = async () => {
-        console.log('Call started');
         setCallButtonEnabled(false);
         setHangUpButtonEnabled(true);
-
-        const currentUsers = await messagingRef.current.joinRoom();
-        setCurrentUsers(currentUsers)
+        await messagingRef.current.joinRoom()
     };
 
     const hangUpHandler = async () => {
-        console.log('Call killed');
         setCallButtonEnabled(true);
         setHangUpButtonEnabled(false);
         await messagingRef.current.exitRoom()
@@ -85,7 +90,7 @@ export default function VideoRoom({}: Props): ReactElement {
                 <title>WebRTC Video Room</title>
             </Head>
             <div className='container'>
-                <h1>Only you see you, {name}:</h1>
+                <h1>Only you see you, {(name && name.length > 0) ? name : "anonymous"}:</h1>
                 <video
                     playsInline
                     autoPlay
@@ -113,7 +118,7 @@ export default function VideoRoom({}: Props): ReactElement {
                         {videoIsRunning ? "Pause tracking" : "Resume tracking"}
                     </button>
                 </div>
-                {CallState({callState})}
+                {CallStateDisplay({callState})}
 
                 <Link href='/'>
                     <a>Quit</a>

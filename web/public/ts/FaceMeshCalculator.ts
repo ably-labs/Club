@@ -28,4 +28,8 @@ export default class FaceMeshCalculator {
     send = async (inputMap: InputMap): Promise<void> => {
         return this.model.send(inputMap)
     }
+
+    close = () => {
+        this.model.close()
+    }
 }

@@ -2,7 +2,7 @@ import {
     BoxGeometry,
     BufferAttribute,
     BufferGeometry,
-    Camera, Mesh, MeshBasicMaterial, OrthographicCamera,
+    Camera, Matrix4, Mesh, MeshBasicMaterial, OrthographicCamera,
     Points,
     PointsMaterial,
     Scene,
@@ -21,13 +21,27 @@ export default class VideoRenderer {
     private readonly height;
     private readonly width;
     private isRunning: Boolean
+    private viewSize: number;
+    private aspectRatio: number;
 
-    constructor(videoElement: HTMLVideoElement, outputElement: HTMLDivElement, width = 680, height = 480) {
-        this.videoElement = videoElement
+    constructor(videoElement: HTMLVideoElement, outputElement: HTMLDivElement, viewSize = 900, width = 680, height = 480) {
+        this.viewSize = viewSize
+        this.aspectRatio = 680 / 480
+
+        this.videoElement = videoElement;
         this.scene = new Scene();
         this.height = height;
         this.width = width;
-        this.camera = new OrthographicCamera(0, width, height, 0);
+        this.camera = new OrthographicCamera(
+            -this.aspectRatio * viewSize / 2,
+            this.aspectRatio * viewSize / 2,
+            viewSize / 2,
+            -viewSize / 2,
+            -1000,
+            1000);
+        // this.camera.rotateZ(Math.PI / 2)
+        // this.camera.position.z = 3
+
         this.renderer = new WebGLRenderer();
         this.renderer.setSize(width, height);
         this.faceMesh = new FaceMeshCalculator(this.renderFace)
@@ -73,11 +87,6 @@ export default class VideoRenderer {
             console.log("Video element not ready, skipping frame.")
         }
 
-        // Setup camera nicely
-        this.camera.position.z = 3
-        // this.camera.rotation.z = 180
-        // this.camera.rotation.set(0, 0, 135)
-
         this.renderer.render(this.scene, this.camera);
 
         // TODO animate
@@ -94,27 +103,31 @@ export default class VideoRenderer {
         for (let i = 0; i < normalizedLandmarks.length * 3; i++) {
             const meshCoordinateNumber = Math.floor(i / 3)
             const xYZIndex = i % 3
-            // Roughly resizing it
             if (xYZIndex === 0) {
-                coordinates1D[i] = normalizedLandmarks[meshCoordinateNumber].x * this.width
+                coordinates1D[i] = (normalizedLandmarks[meshCoordinateNumber].x - 0.5) * this.aspectRatio * this.viewSize
             } else if (xYZIndex === 1) {
-                coordinates1D[i] = normalizedLandmarks[meshCoordinateNumber].y * this.height
+                coordinates1D[i] = (normalizedLandmarks[meshCoordinateNumber].y - 0.5) * this.viewSize
             } else {
-                coordinates1D[i] = normalizedLandmarks[meshCoordinateNumber].z
+                coordinates1D[i] = (normalizedLandmarks[meshCoordinateNumber].z - 0.5) * Math.max(this.aspectRatio * this.viewSize, this.viewSize)
             }
         }
         geometry.setAttribute('position', new BufferAttribute(coordinates1D, 3))
+        geometry.rotateZ(Math.PI)
 
+        // const rotation = new Matrix4().makeRotationZ(Math.PI/2);
+        // geometry.applyMatrix4(rotation)
 
-        const vertices = new Float32Array([
-            50, 50, 0,
-            100, 100, 1.0,
-            200, 200, 2.0,
-        ]);
-        const verticesGeometry = new BufferGeometry()
-        verticesGeometry.setAttribute('position', new BufferAttribute(vertices, 3));
-        let verticesMaterial = new PointsMaterial({color: 0xFFFFFF, size: 10});
-        this.scene.add(new Points(verticesGeometry, verticesMaterial))
+        // const vertices = new Float32Array([
+        //     0, 0, 0,
+        //     50, 50, 0,
+        //     100, 100, 1.0,
+        //     200, 200, 2.0,
+        // ]);
+        // const verticesGeometry = new BufferGeometry()
+        // verticesGeometry.setAttribute('position', new BufferAttribute(vertices, 3));
+        // let verticesMaterial = new PointsMaterial({color: 0xFFFFFF, size: 10});
+        // // verticesGeometry.rotateZ(0)
+        // this.scene.add(new Points(verticesGeometry, verticesMaterial))
 
         const boxGeometry = new BoxGeometry(2, 1);
         const boxMaterial = new MeshBasicMaterial({color: 0x0_0ff00});

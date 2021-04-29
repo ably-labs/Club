@@ -1,5 +1,6 @@
 import React, { ComponentType, ReactElement } from 'react';
-import '../styles/global.css';
+// import '../styles/global.css';
+import 'tailwindcss/tailwind.css'
 import adapter from 'webrtc-adapter';
 
 interface Props {

@@ -2,25 +2,22 @@ import Head from 'next/head';
 import Link from 'next/link';
 
 export default function Home() {
-  return (
-    <div className='container'>
-      <Head>
-        <title>Loc</title>
-        <link rel='icon' href='/favicon.ico' />
-      </Head>
+    return (
+        <div className='container'>
+            <Head>
+                <title>Anonymous Calls</title>
+                <link rel='icon' href='/favicon.ico'/>
+            </Head>
 
-      <main>
-        <h1 className='title'>
-          Click to go to{' '}
-          <Link href='/video-room/'>
-            <a>Video Room</a>
-          </Link>
-        </h1>
-      </main>
+            <main>
+                <Link href='/video-room/'>
+                    <a>Join Video Room</a>
+                </Link>
+            </main>
 
-      <footer>by Ben Butterworth</footer>
+            <footer>by Ben Butterworth</footer>
 
-      <style jsx>{`
+            <style jsx>{`
         .container {
           min-height: 100vh;
           padding: 0 0.5rem;
@@ -91,12 +88,12 @@ export default function Home() {
         }
 
         code {
-          background: #fafafa;
+          background: #494949;
           border-radius: 5px;
           padding: 0.75rem;
           font-size: 1.1rem;
           font-family: Menlo, Monaco, Lucida Console, Liberation Mono,
-            DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace;
+          DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace;
         }
 
         .grid {
@@ -139,10 +136,6 @@ export default function Home() {
           line-height: 1.5;
         }
 
-        .logo {
-          height: 1em;
-        }
-
         @media (max-width: 600px) {
           .grid {
             width: 100%;
@@ -151,7 +144,7 @@ export default function Home() {
         }
       `}</style>
 
-      <style jsx global>{`
+            <style jsx global>{`
         html,
         body {
           padding: 0;
@@ -165,6 +158,6 @@ export default function Home() {
           box-sizing: border-box;
         }
       `}</style>
-    </div>
-  );
+        </div>
+    );
 }

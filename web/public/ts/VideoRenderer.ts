@@ -68,7 +68,6 @@ export default class VideoRenderer {
         if (this.videoElement.readyState == 4) { // https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/readyState
             // Clear existing items in scene
             this.scene.remove.apply(this.scene, this.scene.children)
-
             await this.faceMesh.send({image: this.videoElement})
         } else {
             console.log("Video element not ready, skipping frame.")
@@ -97,27 +96,21 @@ export default class VideoRenderer {
             const xYZIndex = i % 3
             // Roughly resizing it
             if (xYZIndex === 0) {
-                coordinates1D[i] = normalizedLandmarks[meshCoordinateNumber][xYZIndex] - (this.width / 2)
+                coordinates1D[i] = normalizedLandmarks[meshCoordinateNumber].x * this.width
             } else if (xYZIndex === 1) {
-                coordinates1D[i] = normalizedLandmarks[meshCoordinateNumber][xYZIndex] - (this.height / 2)
+                coordinates1D[i] = normalizedLandmarks[meshCoordinateNumber].y * this.height
             } else {
-                coordinates1D[i] = normalizedLandmarks[meshCoordinateNumber][xYZIndex]
+                coordinates1D[i] = normalizedLandmarks[meshCoordinateNumber].z
             }
-            // coordinates1D[i] = (allCoordinates[meshCoordinateNumber][xYZIndex] - (this.renderer.width / 2)) / this.renderer.width
-            // coordinates1D[i] =  allCoordinates[meshCoordinateNumber][xYZIndex]
         }
         geometry.setAttribute('position', new BufferAttribute(coordinates1D, 3))
 
 
-        const vertices = new Float32Array( [
+        const vertices = new Float32Array([
             50, 50, 0,
-            100, 100,  1.0,
-            200,  200,  2.0,
-
-            1.0,  1.0,  1.0,
-            -1.0,  1.0,  1.0,
-            -1.0, -1.0,  1.0
-        ] );
+            100, 100, 1.0,
+            200, 200, 2.0,
+        ]);
         const verticesGeometry = new BufferGeometry()
         verticesGeometry.setAttribute('position', new BufferAttribute(vertices, 3));
         let verticesMaterial = new PointsMaterial({color: 0xFFFFFF, size: 10});

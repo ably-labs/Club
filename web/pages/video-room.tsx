@@ -6,17 +6,9 @@ import VideoRenderer from "../public/ts/VideoRenderer";
 import Messaging, {CallState} from "../public/ts/Messaging";
 import CallStateDisplay from "../public/ts/CallStateDisplay";
 
-interface Props {
-    name: string
-}
+const ORIGINAL_VIDEO_WIDTH = 200
 
-const ORIGINAL_VIDEO_WIDTH = 100
-
-VideoRoom.getInitialProps = ({query: {name}}) => {
-    return {name}
-}
-
-export default function VideoRoom({}: Props): ReactElement {
+export default function VideoRoom(): ReactElement {
     const [usernameField, setUsernameField] = useState('')
     const [username, setUsername] = useState('')
     const [callState, setCallState] = useState<CallState>({
@@ -124,7 +116,6 @@ export default function VideoRoom({}: Props): ReactElement {
                     </button>
                 </div>
                 {CallStateDisplay({callState})}
-
                 <Link href='/'>
                     <a>Quit</a>
                 </Link>

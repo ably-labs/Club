@@ -1,25 +1,30 @@
-import {FaceMesh, InputMap, NormalizedLandmark} from "@mediapipe/face_mesh/face_mesh";
+import {FaceMesh} from "@mediapipe/face_mesh/face_mesh";
 
-export default class FaceMeshCalculator {
+export default class MediaPipeFaceMeshCalculator {
     private readonly model: FaceMesh
     private readonly resultsCallback: (normalizedLandmarks1D: Float32Array) => void;
-    private readonly aspectRatio: number;
-    private readonly viewSize: number;
+    private readonly width: number;
+    private readonly height: number;
 
-    constructor(resultsCallback: (normalizedLandmarks1D: Float32Array) => void, aspectRatio: number, viewSize: number) {
+    constructor(resultsCallback: (normalizedLandmarks1D: Float32Array) => void, width: number, height: number) {
         this.resultsCallback = resultsCallback
-        this.aspectRatio = aspectRatio
-        this.viewSize = viewSize
-        console.log("Creating face mesh model...")
-        this.model = new FaceMesh({locateFile: (file) => {
+        this.width = width
+        this.height = height
+        console.log("Creating FaceMeshCalculator using MediaPipe")
+        this.model = new FaceMesh({
+            locateFile: (file) => {
                 return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
-            }});
+            }
+        });
         this.model.setOptions({
             maxNumFaces: 1,
             minDetectionConfidence: 0.5,
             minTrackingConfidence: 0.5
         })
-        this.model.onResults((results) => {
+        this.model.onResults(this.imageResultHandler)
+    }
+
+    imageResultHandler = (results) => {
             const faces = results.multiFaceLandmarks
             if (!results || !faces || faces.length == 0) {
                 console.warn("No faces found...")
@@ -32,19 +37,18 @@ export default class FaceMeshCalculator {
                 const meshCoordinateNumber = Math.floor(i / 3)
                 const xYZIndex = i % 3
                 if (xYZIndex === 0) {
-                    normalizedLandmarks1D[i] = -(normalizedLandmarks[meshCoordinateNumber].x - 0.5) * this.aspectRatio * this.viewSize
+                    normalizedLandmarks1D[i] = (normalizedLandmarks[meshCoordinateNumber].x) * this.width
                 } else if (xYZIndex === 1) {
-                    normalizedLandmarks1D[i] = (normalizedLandmarks[meshCoordinateNumber].y - 0.5) * this.viewSize
+                    normalizedLandmarks1D[i] = -(normalizedLandmarks[meshCoordinateNumber].y) * this.height + (this.height)
                 } else {
-                    normalizedLandmarks1D[i] = (normalizedLandmarks[meshCoordinateNumber].z - 0.5) * Math.max(this.aspectRatio * this.viewSize, this.viewSize)
+                    normalizedLandmarks1D[i] = (normalizedLandmarks[meshCoordinateNumber].z) * Math.max(this.width, this.height)
                 }
             }
             this.resultsCallback(normalizedLandmarks1D);
-        })
     }
 
-    send = async (inputMap: InputMap): Promise<void> => {
-        return this.model.send(inputMap)
+    send = async (videoElement: HTMLVideoElement): Promise<void> => {
+        return this.model.send({image: videoElement})
     }
 
     close = () => {

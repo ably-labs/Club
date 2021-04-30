@@ -5,12 +5,10 @@ import Layout from '../components/layout';
 import VideoRenderer from "../public/ts/VideoRenderer";
 import Messaging, {CallState} from "../public/ts/Messaging";
 import CallStateDisplay from "../public/ts/CallStateDisplay";
-import {useRouter} from "next/router";
 
 interface Props {
     name: string
 }
-
 
 const ORIGINAL_VIDEO_WIDTH = 100
 
@@ -49,11 +47,10 @@ export default function VideoRoom({}: Props): ReactElement {
         setCallButtonEnabled(false)
         setHangUpButtonEnabled(false)
         messagingRef.current = new Messaging(username, setCallState);
-        videoRenderer.current = new VideoRenderer(videoRef.current, renderOutputRef.current, fpsCounter.current);
+        videoRenderer.current = new VideoRenderer(videoRef.current, renderOutputRef.current, fpsCounter.current, true);
         (async () => {
             videoRenderer.current.videoElement = await loadCameraFeed(videoRef.current);
             setCallButtonEnabled(true)
-            videoRenderer.current.startRender()
         })();
         return () => {
             videoRenderer.current.dispose()
@@ -79,7 +76,7 @@ export default function VideoRoom({}: Props): ReactElement {
 
     const toggleTracking = async () => {
         if (!videoIsRunning) {
-            videoRenderer.current.startRender()
+            await videoRenderer.current.startRender()
         } else {
             videoRenderer.current.stopRender()
         }
@@ -89,7 +86,7 @@ export default function VideoRoom({}: Props): ReactElement {
     return (
         <Layout>
             <Head>
-                <title>WebRTC Video Room</title>
+                <title>Anonymous Video Calls</title>
             </Head>
             <div className='container'>
                 <div>
@@ -109,8 +106,7 @@ export default function VideoRoom({}: Props): ReactElement {
                     ref={videoRef}
                 ></video>
                 <h1>Everyone else sees this:</h1>
-                <div style={{width: 500, height: 500}}
-                     ref={renderOutputRef}
+                <div ref={renderOutputRef}
                 >
                 </div>
                 <div>

@@ -64,7 +64,7 @@ export default class VideoRenderer {
         // this.faceMesh = new MediaPipeFaceMeshCalculator(this.updateFaceMesh, this.aspectRatio, viewSize)
 
         if (this.useMediaPipe) {
-            this.mediaPipeFaceMesh = new MediaPipeFaceMeshCalculator(this.updateFaceMesh, this.width, this.height)
+            this.mediaPipeFaceMesh = new MediaPipeFaceMeshCalculator(this.updateSceneWithFaceMesh, this.width, this.height)
             this.startRender()
         } else {
             this.faceMesh = new TfjsFaceMeshCalculator(this.aspectRatio, viewSize)
@@ -112,11 +112,12 @@ export default class VideoRenderer {
 
         if (this.videoElement.readyState == 4) { // https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/readyState
             if (this.useMediaPipe) {
-                await this.mediaPipeFaceMesh.send(this.videoElement) // code continues in [MediaPipeFaceMeshCalculator.imageResultHandler]
+                await this.mediaPipeFaceMesh.send(this.videoElement)
+                // code continues in [MediaPipeFaceMeshCalculator.imageResultHandler], which eventually calls this.updateSceneWithFaceMesh
             } else {
                 const normalizedLandmarks1D = await this.faceMesh.getKeypointsFromImage(this.videoElement)
                 if (normalizedLandmarks1D) {
-                    this.updateFaceMesh(normalizedLandmarks1D);
+                    this.updateSceneWithFaceMesh(normalizedLandmarks1D);
                     const axesHelper = new AxesHelper(100); // red is X, Y is green, Z is blue
                     this.scene.add(axesHelper);
                     this.renderer.render(this.scene, this.camera);
@@ -135,10 +136,9 @@ export default class VideoRenderer {
      * Update the face mesh state (in the three.js scene) in this class, which is used in the render loop.
      * @param normalizedLandmarks1D All face landmarks for 1 face in a 1-dimensional list: x1, y1, z1, x2, y2, z2.
      */
-    updateFaceMesh = (normalizedLandmarks1D: Float32Array) => {
+    updateSceneWithFaceMesh = (normalizedLandmarks1D: Float32Array) => {
         const geometry = new BufferGeometry()
         geometry.setAttribute('position', new BufferAttribute(normalizedLandmarks1D, 3))
-        // geometry.rotateZ(Math.PI)
         let material = new PointsMaterial({color: 0xFFFFFF, size: 2});
         const meshPoints = new Points(geometry, material)
         this.scene.remove.apply(this.scene, this.scene.children)

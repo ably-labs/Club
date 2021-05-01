@@ -77,7 +77,7 @@ export default class VideoRenderer {
      */
     startRender = async () => {
         if (!this.videoElement.srcObject) {
-            console.error("HTML Video element has no source object.")
+            console.log("Skipping renderHTML Video element, since the videoElement doesn't have the camera feed yet.")
         }
         if (this.isRunning) {
             return

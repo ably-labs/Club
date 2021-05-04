@@ -1,14 +1,18 @@
 import React from 'react';
 import {Menu} from "@headlessui/react";
 
-const VideoRoomOptions = () => {
+interface Props {
+    toggleOriginalVideoFeed: (boolean) => void
+}
+
+const VideoRoomOptions = ({toggleOriginalVideoFeed}: Props) => {
     return (
         <Menu>
             <Menu.Button>Options</Menu.Button>
             <Menu.Items>
                 <Menu.Item>
                     {({active}) => (
-                        <button className={`${active && "bg-blue-500"}`}>
+                        <button onClick={toggleOriginalVideoFeed} className={`${active && "bg-blue-500"}`}>
                             Debug: show video feed (only you)
                         </button>
                     )}

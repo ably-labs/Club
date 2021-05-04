@@ -11,15 +11,17 @@ import {
 } from "three";
 import MediapipeHolisticCalculator from "./MediapipeHolisticCalculator";
 import Stats from 'stats.js'
+import Messaging from "./Messaging";
 
 /**
  * Renders video
  */
 export default class VideoRenderer {
     videoElement: HTMLVideoElement
-    scene: Scene
-    camera: Camera
-    renderer: WebGLRenderer
+    private scene: Scene
+    private camera: Camera
+    private renderer: WebGLRenderer
+    private messaging: Messaging
     renderId: number | null = null
     private isRunning: Boolean
     private readonly viewSize: number;
@@ -30,17 +32,21 @@ export default class VideoRenderer {
     private readonly height: number;
     private meshPoints: Points<BufferGeometry, PointsMaterial>;
     private stats: Stats;
+    private latestLandmarks: Float32Array | null = null;
+    private periodicFaceData: number;
 
     constructor(videoElement: HTMLVideoElement,
                 outputElement: HTMLDivElement,
                 fpsOutput: HTMLDivElement,
+                messaging: Messaging,
                 viewSize = 900,
                 width = 680,
     ) {
         this.videoElement = videoElement;
         outputElement.innerHTML = "";
         this.fpsOutput = fpsOutput;
-        this.viewSize = viewSize
+        this.messaging = messaging;
+        this.viewSize = viewSize;
         this.aspectRatio = 680 / 480
         this.width = width
         this.height = this.width / this.aspectRatio
@@ -74,6 +80,18 @@ export default class VideoRenderer {
         } else {
             this.start()
         }
+    }
+
+    scheduleFaceDataPublishing() {
+        this.periodicFaceData = window.setInterval(async () => {
+            if (this.latestLandmarks) {
+                await this.messaging.publishToLobby(this.latestLandmarks);
+            }
+        }, 1000)
+    }
+
+    cancelFaceDataPublishing() {
+        window.clearInterval(this.periodicFaceData)
     }
 
     start = async () => {
@@ -130,11 +148,19 @@ export default class VideoRenderer {
         })
     }
 
+    // TODO support more than 1 remote face
+    // TODO ensure this renders nicely, add it to the scene
+    updateRemoteScene = (normalizedLandmarks1D: Float32Array, clientId: string) => {
+        console.log(`Received remote face from ${clientId}... render it now please`)
+        console.log({normalizedLandmarks1D})
+    }
+
     /**
      * Update the face mesh state (in the three.js scene) in this class, which is used in the render loop.
      * @param normalizedLandmarks1D All face landmarks for 1 face in a 1-dimensional list: x1, y1, z1, x2, y2, z2.
      */
     updateScene = (normalizedLandmarks1D: Float32Array) => {
+        this.latestLandmarks = normalizedLandmarks1D
         if (normalizedLandmarks1D) {
             if (!this.meshPoints) {
                 const MESH_COLOR = 0x0

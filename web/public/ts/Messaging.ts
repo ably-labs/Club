@@ -15,14 +15,21 @@ export default class Messaging {
     private setCallState: (value: (((prevState: CallState) => CallState) | CallState)) => void;
     private connectedClientIds: string[];
     private username: string;
+    private updateRemoteFaceMesh: (faceArray: Float32Array, clientId: string) => void
 
-    constructor(username: string, setCallState: (value: (((prevState: CallState) => CallState) | CallState)) => void) {
+    constructor(username: string,
+                setCallState: (value: (((prevState: CallState) => CallState) | CallState)) => void,
+    ) {
         this.username = username
         this.setCallState = setCallState
         if (!process.env.NEXT_PUBLIC_ABLY_API_KEY) {
             console.error(`API key is missing, it is ${process.env.NEXT_PUBLIC_ABLY_API_KEY}.`)
         }
         this.connect(username)
+    }
+
+    setUpdateRemoteFaceMesh(callback: (faceArray: Float32Array, clientId: string) => void) {
+        this.updateRemoteFaceMesh = callback
     }
 
     connect = (username: string, connectedCallback?: () => void) => {
@@ -69,6 +76,11 @@ export default class Messaging {
                 currentUsers: this.connectedClientIds
             })
 
+            this.channel.subscribe("face", (message: Types.Message) => {
+                const faceArray = message.data as Float32Array
+                this.updateRemoteFaceMesh(faceArray, message.clientId)
+            })
+
             this.channel.presence.subscribe("enter", (member) => {
                 console.log(`User entered: ${member.clientId}`)
                 this.connectedClientIds.push(member.clientId);
@@ -100,6 +112,10 @@ export default class Messaging {
             connection: "connected",
             currentUsers: this.connectedClientIds
         })
+    }
+
+    publishToLobby = async (face: Float32Array) => {
+        await this.channel.publish("face", face)
     }
 
     leaveLobbyPresense = async () => {

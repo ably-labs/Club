@@ -20,7 +20,7 @@ export default function VideoRoom(): ReactElement {
     const renderOutputRef = useRef(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const [videoIsRunning, setVideoIsRunning] = useState(true);
-    const videoRenderer = useRef<VideoRenderer>(null);
+    const videoRendererRef = useRef<VideoRenderer>(null);
     const messagingRef = useRef<Messaging>(null);
     const fpsCounterRef = useRef<HTMLDivElement>(null);
     const [callButtonEnabled, setCallButtonEnabled] = useState(true);
@@ -30,10 +30,6 @@ export default function VideoRoom(): ReactElement {
     const DEFAULT_ORIGINAL_VIDEO_WIDTH = 0
     const [originalVideoOn, setOriginalVideoOn] = useState(false)
     const [originalVideoWidth, setOriginalVideoWidth] = useState(DEFAULT_ORIGINAL_VIDEO_WIDTH)
-
-    const onChangeName = (event) => {
-        setUsernameField(event.target.value)
-    }
 
     const loadCameraFeed = async (videoElement: HTMLVideoElement): Promise<HTMLVideoElement> => {
         videoElement.srcObject = await navigator.mediaDevices.getUserMedia({
@@ -48,40 +44,43 @@ export default function VideoRoom(): ReactElement {
         const username = generateRandomUsername()
         setUsername(username)
         messagingRef.current = new Messaging(username, setCallState);
-        videoRenderer.current = new VideoRenderer(videoRef.current, renderOutputRef.current, fpsCounterRef.current);
+        videoRendererRef.current = new VideoRenderer(videoRef.current, renderOutputRef.current, fpsCounterRef.current, messagingRef.current);
+        messagingRef.current.setUpdateRemoteFaceMesh(videoRendererRef.current.updateRemoteScene);
         (async () => {
-            videoRenderer.current.videoElement = await loadCameraFeed(videoRef.current);
+            videoRendererRef.current.videoElement = await loadCameraFeed(videoRef.current);
             setCallButtonEnabled(true)
             await messagingRef.current.connectToLobby()
         })();
 
         return () => {
-            videoRenderer.current.dispose()
+            videoRendererRef.current.dispose()
         }
     }, []);
 
     const joinCallHandler = async () => {
         setCallButtonEnabled(false);
         setHangUpButtonEnabled(true);
+        videoRendererRef.current.scheduleFaceDataPublishing()
         await messagingRef.current.joinLobbyPresence()
     };
 
     const hangUpHandler = async () => {
         setCallButtonEnabled(true);
+        videoRendererRef.current.cancelFaceDataPublishing()
         setHangUpButtonEnabled(false);
         await messagingRef.current.leaveLobbyPresense()
     };
 
     const toggleTracking = async () => {
         if (!videoIsRunning) {
-            await videoRenderer.current.start()
+            await videoRendererRef.current.start()
         } else {
-            videoRenderer.current.stopRender()
+            videoRendererRef.current.stopRender()
         }
         setVideoIsRunning(!videoIsRunning)
     }
 
-    const toggleOriginalVideo = () => {
+    const toggleOriginalVideoFeed = () => {
         if (!originalVideoOn) { // turn on
             setOriginalVideoWidth(200);
         } else {
@@ -155,15 +154,17 @@ export default function VideoRoom(): ReactElement {
                             Join <FaPhone/>
                         </button>
                     </div>
-                    <button className={"bg-indigo-500 hover:bg-indigo-700 text-white mx-2 font-bold py-2 px-4 rounded disabled:bg-gray-500 disabled:cursor-not-allowed"}
-                            onClick={toggleTracking} disabled={!hangUpButtonEnabled}>
+                    <button
+                        className={"bg-indigo-500 hover:bg-indigo-700 text-white mx-2 font-bold py-2 px-4 rounded disabled:bg-gray-500 disabled:cursor-not-allowed"}
+                        onClick={toggleTracking} disabled={!hangUpButtonEnabled}>
                         {videoIsRunning ? <FaPause/> : <FaPlay/>}
                     </button>
-                    <button className={"bg-red-500 hover:bg-red-700 text-white mx-2 font-bold py-2 px-4 rounded disabled:bg-gray-500 disabled:cursor-not-allowed"}
-                            onClick={hangUpHandler} disabled={!hangUpButtonEnabled}>
+                    <button
+                        className={"bg-red-500 hover:bg-red-700 text-white mx-2 font-bold py-2 px-4 rounded disabled:bg-gray-500 disabled:cursor-not-allowed"}
+                        onClick={hangUpHandler} disabled={!hangUpButtonEnabled}>
                         Hang up
                     </button>
-                    <VideoRoomOptions/>
+                    <VideoRoomOptions toggleOriginalVideoFeed={toggleOriginalVideoFeed}/>
                 </div>
                 {CallStateDisplay({callState})}
             </div>

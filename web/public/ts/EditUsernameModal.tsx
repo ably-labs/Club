@@ -25,7 +25,6 @@ export default function EditUsernameModal({handleSubmit, show, handleClose}: Pro
         setUsernameField(event.target.value)
     }
 
-    // @ts-ignore
     return (
         <Dialog
             initialFocus={usernameFieldRef} open={show} onClose={handleClose}

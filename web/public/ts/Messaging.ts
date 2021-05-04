@@ -25,7 +25,7 @@ export default class Messaging {
         this.connect(username)
     }
 
-    connect = (username: string) => {
+    connect = (username: string, connectedCallback?: () => void) => {
         const options: Ably.Types.ClientOptions = {
             key: process.env.NEXT_PUBLIC_ABLY_API_KEY,
             clientId: username,
@@ -33,6 +33,7 @@ export default class Messaging {
         this.ablyClient = new Realtime(options)
         this.ablyClient.connection.on('connected', () => {
             console.log("Connected to Ably.")
+            if (connectedCallback) connectedCallback();
         })
 
         this.ablyClient.connection.on('closed', () => {
@@ -40,12 +41,13 @@ export default class Messaging {
         });
     }
 
-    setUsername = (username) => {
+    setUsername = async (username) => {
         this.username = username
-        this.ablyClient.channels.get(this.CHANNEL_ID).detach()
-        this.connect(username)
-        // TODO is there an easier way to change the clientId?
-        // this.ablyClient.clientId = username
+        await this.close()
+        this.connect(username, async () => {
+            await this.connectToLobby()
+        })
+        // TODO Use UUID clientId and change the name of the user. And store usernames in an object
     }
 
     connectToLobby = async (): Promise<void> => {
@@ -90,7 +92,10 @@ export default class Messaging {
 
     joinLobbyPresence = async () => {
         await this.channel.presence.enter()
-        this.connectedClientIds = this.connectedClientIds.filter((value)=> value !== this.username)
+        const presenceMessages = await this.channel.presence.get()
+        this.connectedClientIds = presenceMessages.map(presenceMessage => {
+            return presenceMessage.clientId
+        })
         this.setCallState({
             connection: "connected",
             currentUsers: this.connectedClientIds
@@ -99,7 +104,7 @@ export default class Messaging {
 
     leaveLobbyPresense = async () => {
         await this.channel.presence.leave()
-        this.connectedClientIds = this.connectedClientIds.filter((value)=> value !== this.username)
+        this.connectedClientIds = this.connectedClientIds.filter((value) => value !== this.username)
         this.setCallState({
             connection: "connected",
             currentUsers: this.connectedClientIds

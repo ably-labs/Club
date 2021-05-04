@@ -95,11 +95,14 @@ export default function VideoRoom(): ReactElement {
         setEditUsernameModalEnabled(!editUsernameModalEnabled)
     }
 
-    const editUsernameHandler = (username?: string) => {
-        setUsername(username)
-        messagingRef.current.setUsername(username)
-        setColor(pickRandomTailwindColor())
+    const editUsernameHandler = async (username?: string) => {
         setEditUsernameModalEnabled(false)
+        if (!username) {
+            return
+        }
+        setUsername(username)
+        setColor(pickRandomTailwindColor())
+        await messagingRef.current.setUsername(username)
         // TODO save to local storage, and re-read on startup everytime.
     }
 

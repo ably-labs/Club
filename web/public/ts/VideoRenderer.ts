@@ -1,16 +1,16 @@
 import {
-    AxesHelper,
     BufferAttribute,
     BufferGeometry,
     Camera,
+    Object3D,
     OrthographicCamera,
     Points,
     PointsMaterial,
     Scene,
     WebGLRenderer
 } from "three";
-import TfjsFaceMeshCalculator from "./TfjsFaceMeshCalculator";
-import MediaPipeFaceMeshCalculator from "./MediaPipeFaceMeshCalculator";
+import MediapipeHolisticCalculator from "./MediapipeHolisticCalculator";
+import Stats from 'stats.js'
 
 /**
  * Renders video
@@ -24,18 +24,16 @@ export default class VideoRenderer {
     private isRunning: Boolean
     private readonly viewSize: number;
     private readonly aspectRatio: number;
-    lastLoop = Date.now();
     private fpsOutput: HTMLParagraphElement;
-    private mediaPipeFaceMesh: MediaPipeFaceMeshCalculator;
-    private faceMesh: TfjsFaceMeshCalculator;
+    private holisticCalculator: MediapipeHolisticCalculator;
     private readonly width: number;
     private readonly height: number;
-    private readonly useMediaPipe: boolean;
+    private meshPoints: Points<BufferGeometry, PointsMaterial>;
+    private stats: Stats;
 
     constructor(videoElement: HTMLVideoElement,
                 outputElement: HTMLDivElement,
-                fpsOutput: HTMLParagraphElement,
-                useMediaPipe = false,
+                fpsOutput: HTMLDivElement,
                 viewSize = 900,
                 width = 680,
     ) {
@@ -46,7 +44,10 @@ export default class VideoRenderer {
         this.aspectRatio = 680 / 480
         this.width = width
         this.height = this.width / this.aspectRatio
-        this.useMediaPipe = useMediaPipe
+
+        this.stats = new Stats()
+        this.stats.showPanel(0);
+        this.fpsOutput.appendChild(this.stats.dom)
 
         this.renderer = new WebGLRenderer({alpha: true});
         this.renderer.setSize(this.width, this.height);
@@ -63,27 +64,34 @@ export default class VideoRenderer {
         // cameraControls.target.set()
         // this.faceMesh = new MediaPipeFaceMeshCalculator(this.updateFaceMesh, this.aspectRatio, viewSize)
 
-        if (this.useMediaPipe) {
-            this.mediaPipeFaceMesh = new MediaPipeFaceMeshCalculator(this.updateSceneWithFaceMesh, this.width, this.height)
-            this.startRender()
+        this.holisticCalculator = new MediapipeHolisticCalculator(this.updateScene, this.width, this.height)
+        if (videoElement.readyState != 4) { // https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/readyState
+            videoElement.addEventListener('canplay', () => {
+                this.start()
+            }, {once: true})
         } else {
-            this.faceMesh = new TfjsFaceMeshCalculator(this.aspectRatio, viewSize)
-            this.faceMesh.initialize().then(() => this.startRender())
+            this.start()
         }
+    }
+
+    start = async () => {
+        this.isRunning = true
+        this.stats.begin()
+        await this.step()
     }
 
     /**
      * Call this to start the rendering
      */
-    startRender = async () => {
+    step = async () => {
         if (!this.videoElement.srcObject) {
             console.log("Skipping renderHTML Video element, since the videoElement doesn't have the camera feed yet.")
         }
         if (this.isRunning) {
-            return
+            this.isRunning = true
+            await this.holisticCalculator.send(this.videoElement)
+            // code continues in [MediaPipeFaceMeshCalculator.imageResultHandler], which eventually calls this.updateSceneWithFaceMesh
         }
-        this.isRunning = true
-        this.renderId = window.requestAnimationFrame(this.renderLoop)
     }
 
     /**
@@ -97,59 +105,62 @@ export default class VideoRenderer {
         }
     }
 
-    /**
-     * This function renders the latest face mesh state, which is calculated by TfjsFaceMeshCalculator or
-     * MediaPipeFaceMeshCalculator asynchronously.
-     */
-    private renderLoop = async () => {
-        if (!this.isRunning) {
-            return
-        }
-        const thisLoop = Date.now()
-        const fps = 1000 / (thisLoop - this.lastLoop)
-        this.lastLoop = thisLoop
-        this.fpsOutput.innerText = `${fps.toFixed(0)} FPS`
+    private faceMeshResources = new Set();
 
-        if (this.videoElement.readyState == 4) { // https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/readyState
-            if (this.useMediaPipe) {
-                await this.mediaPipeFaceMesh.send(this.videoElement)
-                // code continues in [MediaPipeFaceMeshCalculator.imageResultHandler], which eventually calls this.updateSceneWithFaceMesh
-            } else {
-                const normalizedLandmarks1D = await this.faceMesh.getKeypointsFromImage(this.videoElement)
-                if (normalizedLandmarks1D) {
-                    this.updateSceneWithFaceMesh(normalizedLandmarks1D);
-                    const axesHelper = new AxesHelper(100); // red is X, Y is green, Z is blue
-                    this.scene.add(axesHelper);
-                    this.renderer.render(this.scene, this.camera);
-                } else {
-                    console.warn("Camera detected 0 faces...")
-                }
+    addFaceMeshResources(...resources: any) {
+        for (const resource of resources) {
+            if (resource.dispose || resource instanceof Object3D) {
+                this.faceMeshResources.add(resource)
             }
         }
+    }
 
-        this.renderer.render(this.scene, this.camera);
-        if (this.renderId) window.cancelAnimationFrame(this.renderId)
-        this.renderId = window.requestAnimationFrame(this.renderLoop)
+    private removePreviousFaceMesh() {
+        this.faceMeshResources.forEach((resource: any) => {
+            if (resource instanceof Object3D) {
+                if (resource.parent) {
+                    resource.parent.remove(resource);
+                }
+            }
+            if (resource.dispose) {
+                resource.dispose()
+            }
+        })
     }
 
     /**
      * Update the face mesh state (in the three.js scene) in this class, which is used in the render loop.
      * @param normalizedLandmarks1D All face landmarks for 1 face in a 1-dimensional list: x1, y1, z1, x2, y2, z2.
      */
-    updateSceneWithFaceMesh = (normalizedLandmarks1D: Float32Array) => {
-        const geometry = new BufferGeometry()
-        geometry.setAttribute('position', new BufferAttribute(normalizedLandmarks1D, 3))
-        let material = new PointsMaterial({color: 0xFFFFFF, size: 2});
-        const meshPoints = new Points(geometry, material)
-        this.scene.remove.apply(this.scene, this.scene.children)
-        this.scene.add(meshPoints)
+    updateScene = (normalizedLandmarks1D: Float32Array) => {
+        if (!this.meshPoints) {
+            let material = new PointsMaterial({color: 0xFFFFFF, size: 2});
+            const geometry = new BufferGeometry()
+            this.meshPoints = new Points(geometry, material)
+            this.meshPoints.geometry.setAttribute('position', new BufferAttribute(normalizedLandmarks1D, 3))
+            this.addFaceMeshResources(geometry, material, this.meshPoints)
+            this.scene.add(this.meshPoints)
+        } else {
+            // Shouldn't be gc'ing in render
+            this.meshPoints.geometry.dispose()
+            this.meshPoints.geometry.setAttribute('position', new BufferAttribute(normalizedLandmarks1D, 3))
+            this.meshPoints.geometry.attributes["position"].needsUpdate = true;
+        }
+        this.renderer.render(this.scene, this.camera);
+        if (this.renderId) window.cancelAnimationFrame(this.renderId)
+        if (this.isRunning) {
+            this.renderId = window.requestAnimationFrame(() => {
+                this.stats.end()
+                this.step()
+            })
+        }
     }
 
     dispose() {
         console.log("Disposing VideoRenderer now...")
         this.renderer.dispose()
         this.stopRender()
-        this.faceMesh?.close()
-        this.mediaPipeFaceMesh?.close()
+        this.holisticCalculator?.close()
+        this.removePreviousFaceMesh()
     }
 }

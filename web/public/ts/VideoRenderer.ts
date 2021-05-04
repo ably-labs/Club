@@ -46,10 +46,12 @@ export default class VideoRenderer {
         this.height = this.width / this.aspectRatio
 
         this.stats = new Stats()
+        this.stats.dom.style.cssText="position:relative;top:0;left:0;cursor:pointer;opacity:0.9;z-index:10000"
         this.stats.showPanel(0);
         this.fpsOutput.appendChild(this.stats.dom)
 
         this.renderer = new WebGLRenderer({alpha: true});
+        this.renderer.setClearColor(0xffffff, 1)
         this.renderer.setSize(this.width, this.height);
         outputElement.appendChild(this.renderer.domElement)
         this.scene = new Scene();
@@ -134,7 +136,8 @@ export default class VideoRenderer {
      */
     updateScene = (normalizedLandmarks1D: Float32Array) => {
         if (!this.meshPoints) {
-            let material = new PointsMaterial({color: 0xFFFFFF, size: 2});
+            const MESH_COLOR = 0x0
+            let material = new PointsMaterial({color: MESH_COLOR, size: 2});
             const geometry = new BufferGeometry()
             this.meshPoints = new Points(geometry, material)
             this.meshPoints.geometry.setAttribute('position', new BufferAttribute(normalizedLandmarks1D, 3))

@@ -8,11 +8,14 @@
     "start": "next start"
   },
   "dependencies": {
+    "@headlessui/react": "^1.1.1",
     "@mediapipe/holistic": "^0.3.1620080860",
+    "@types/stats.js": "^0.17.0",
     "ably": "^1.2.9",
     "next": "^10.0.0",
     "react": "17.0.1",
     "react-dom": "17.0.1",
+    "react-icons": "^4.2.0",
     "socket.io": "^4.0.1",
     "socket.io-client": "^4.0.1",
     "stats.js": "^0.17.0",

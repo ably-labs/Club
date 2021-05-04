@@ -6,5 +6,5 @@ interface Props {
 }
 
 export default function Layout({ children }: Props): ReactElement {
-  return <div className={styles.container}>{children}</div>;
+  return <div className={"content-center"}>{children}</div>;
 }

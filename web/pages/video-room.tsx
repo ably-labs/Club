@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import React, {ReactElement, useEffect, useRef, useState} from 'react';
 import Head from 'next/head';
-import Layout from '../components/layout';
 import VideoRenderer from "../public/ts/VideoRenderer";
 import Messaging, {CallState} from "../public/ts/Messaging";
 import CallStateDisplay from "../public/ts/CallStateDisplay";
@@ -20,11 +19,11 @@ export default function VideoRoom(): ReactElement {
     const [videoIsRunning, setVideoIsRunning] = useState(true);
     const videoRenderer = useRef<VideoRenderer>(null);
     const messagingRef = useRef<Messaging>(null);
-    const fpsCounter = useRef<HTMLDivElement>(null);
+    const fpsCounterRef = useRef<HTMLDivElement>(null);
     const [callButtonEnabled, setCallButtonEnabled] = useState(true);
     const [hangUpButtonEnabled, setHangUpButtonEnabled] = useState(false);
-    const DEFAULT_ORIGINAL_VIDEO_WIDTH = 0
 
+    const DEFAULT_ORIGINAL_VIDEO_WIDTH = 0
     const [originalVideoOn, setOriginalVideoOn] = useState(false)
     const [originalVideoWidth, setOriginalVideoWidth] = useState(DEFAULT_ORIGINAL_VIDEO_WIDTH)
 
@@ -43,7 +42,7 @@ export default function VideoRoom(): ReactElement {
         setCallButtonEnabled(false)
         setHangUpButtonEnabled(false)
         messagingRef.current = new Messaging(username, setCallState);
-        videoRenderer.current = new VideoRenderer(videoRef.current, renderOutputRef.current, fpsCounter.current);
+        videoRenderer.current = new VideoRenderer(videoRef.current, renderOutputRef.current, fpsCounterRef.current);
         (async () => {
             videoRenderer.current.videoElement = await loadCameraFeed(videoRef.current);
             setCallButtonEnabled(true)
@@ -83,24 +82,20 @@ export default function VideoRoom(): ReactElement {
     }
 
     const toggleOriginalVideo = () => {
-        if (!originalVideoOn) {
-            setOriginalVideoWidth(0)
-        } else {
+        if (!originalVideoOn) { // turn on
             setOriginalVideoWidth(200);
+        } else {
+            setOriginalVideoWidth(0)
         }
         setOriginalVideoOn(!originalVideoOn)
     }
 
     const [editUsernameModalEnabled, setEditUsernameModalEnabled] = useState(false)
-    const showModal = () => {
-        setEditUsernameModalEnabled(true)
+    const toggleEditUsernameModal = () => {
+        setEditUsernameModalEnabled(!editUsernameModalEnabled)
     }
 
-    const editUsernameHandler = (username?: string, random?: boolean) => {
-        if (random) {
-            // remove local storage
-            // generate new username, and set it
-        }
+    const editUsernameHandler = (username?: string) => {
         setUsername(username)
         setEditUsernameModalEnabled(false)
         // TODO save to local storage, and re-read on startup everytime.
@@ -111,23 +106,23 @@ export default function VideoRoom(): ReactElement {
     }
 
     return (
-        <Layout>
+        <div className='container justify-center text-center flex flex-col mx-auto'>
             <Head>
                 <title>Anonymous Video Calls</title>
             </Head>
-            <div className='container'>
-                <EditUsernameModal show={editUsernameModalEnabled}
-                                   handleSubmit={editUsernameHandler}
-                                   handleClose={closeEditUsernameModalHandler}/>
-                <div style={{position: "absolute", top: 0, right: 0}} ref={fpsCounter}/>
+            <EditUsernameModal show={editUsernameModalEnabled}
+                               handleSubmit={editUsernameHandler}
+                               handleClose={closeEditUsernameModalHandler}/>
+            <div className={"flex flex-col flex-grow"}>
+                <div style={{position: "fixed", top: 0, right: 0}} ref={fpsCounterRef}/>
                 <div>
-                    <div>
-                        <p className={"text-yellow-400 text-2xl"}>Hello
-                            👋, {(username && username.length > 0) ? username : "anonymous"}</p>
-                    </div>
-                    <button className={"text-green-200"} onClick={showModal}>Edit</button>
+                    <p className={"text-yellow-800 text-2xl"}>Hello
+                        👋, {(username && username.length > 0) ? username : "anonymous"}
+                        <button className={"text-green-200"} onClick={toggleEditUsernameModal}>📝</button>
+                    </p>
                 </div>
                 <video
+                    style={{transform: "scaleX(-1)"}}
                     playsInline
                     autoPlay
                     loop
@@ -139,24 +134,30 @@ export default function VideoRoom(): ReactElement {
                 >
                 </div>
                 <div>
-                    <button onClick={joinCallHandler} disabled={!callButtonEnabled}>
-                        Join call
+                    <button className={"bg-green-500 hover:bg-green-700 text-white mx-2 font-bold py-2 px-4 rounded"}
+                            onClick={joinCallHandler} disabled={!callButtonEnabled}>
+                        Join
                     </button>
-                    <button onClick={hangUpHandler} disabled={!hangUpButtonEnabled}>
+                    <button className={"bg-red-500 hover:bg-red-700 text-white mx-2 font-bold py-2 px-4 rounded"}
+                            onClick={hangUpHandler} disabled={!hangUpButtonEnabled}>
                         Hang up
                     </button>
-                    <button onClick={toggleTracking}>
+                    <button className={"text-gray-700 rounded px-4 py-2 mx-2 hover:bg-gray-300"}
+                            onClick={toggleTracking}>
                         {videoIsRunning ? "Pause tracking" : "Resume tracking"}
                     </button>
-                    <button onClick={toggleOriginalVideo}>
-                        {originalVideoOn ? "Hide real video" : "Show real video"}
+                    <button className={"text-gray-700 rounded px-4 py-2 mx-2 hover:bg-gray-300"}
+                            onClick={toggleOriginalVideo}>
+                        {originalVideoOn ? "Debug: Hide real video (local only)" : "Debug: Show real video (local only)"}
                     </button>
                 </div>
                 {CallStateDisplay({callState})}
+            </div>
+            <div className={"flex-shrink my-4 hover:underline"}>
                 <Link href='/'>
-                    <a>Quit</a>
+                    <a>Go to homepage</a>
                 </Link>
             </div>
-        </Layout>
+        </div>
     );
 }

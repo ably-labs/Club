@@ -35,7 +35,7 @@ export default function Home() {
                         {createLink("Cloudflare Pages", "https://cloudflare.com/")}{". "}
                     </p>
                 </div>
-                <a className={"hover:opacity-20 flex justify-center my-5"} href={"https://github.com/ben-xD/Skelly/"}>
+                <a className={"hover:opacity-20 flex justify-center my-5"} href={"https://github.com/ben-xD/club/"}>
                     <FaGithub className={"hover:opacity-20"} size={32}/>
                 </a>
             </div>

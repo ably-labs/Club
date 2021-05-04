@@ -5,8 +5,8 @@ import Layout from '../components/layout';
 import VideoRenderer from "../public/ts/VideoRenderer";
 import Messaging, {CallState} from "../public/ts/Messaging";
 import CallStateDisplay from "../public/ts/CallStateDisplay";
-
-const ORIGINAL_VIDEO_WIDTH = 200
+import EditUsernameModal from "../public/ts/EditUsernameModal";
+import {generateRandomUsername} from "../public/ts/name_utilities";
 
 export default function VideoRoom(): ReactElement {
     const [usernameField, setUsernameField] = useState('')
@@ -20,9 +20,13 @@ export default function VideoRoom(): ReactElement {
     const [videoIsRunning, setVideoIsRunning] = useState(true);
     const videoRenderer = useRef<VideoRenderer>(null);
     const messagingRef = useRef<Messaging>(null);
-    const fpsCounter = useRef<HTMLParagraphElement>(null);
+    const fpsCounter = useRef<HTMLDivElement>(null);
     const [callButtonEnabled, setCallButtonEnabled] = useState(true);
     const [hangUpButtonEnabled, setHangUpButtonEnabled] = useState(false);
+    const DEFAULT_ORIGINAL_VIDEO_WIDTH = 0
+
+    const [originalVideoOn, setOriginalVideoOn] = useState(false)
+    const [originalVideoWidth, setOriginalVideoWidth] = useState(DEFAULT_ORIGINAL_VIDEO_WIDTH)
 
     const onChangeName = (event) => {
         setUsernameField(event.target.value)
@@ -39,11 +43,14 @@ export default function VideoRoom(): ReactElement {
         setCallButtonEnabled(false)
         setHangUpButtonEnabled(false)
         messagingRef.current = new Messaging(username, setCallState);
-        videoRenderer.current = new VideoRenderer(videoRef.current, renderOutputRef.current, fpsCounter.current, true);
+        videoRenderer.current = new VideoRenderer(videoRef.current, renderOutputRef.current, fpsCounter.current);
         (async () => {
             videoRenderer.current.videoElement = await loadCameraFeed(videoRef.current);
             setCallButtonEnabled(true)
         })();
+
+        setUsername(generateRandomUsername())
+
         return () => {
             videoRenderer.current.dispose()
         }
@@ -68,11 +75,39 @@ export default function VideoRoom(): ReactElement {
 
     const toggleTracking = async () => {
         if (!videoIsRunning) {
-            await videoRenderer.current.startRender()
+            await videoRenderer.current.start()
         } else {
             videoRenderer.current.stopRender()
         }
         setVideoIsRunning(!videoIsRunning)
+    }
+
+    const toggleOriginalVideo = () => {
+        if (!originalVideoOn) {
+            setOriginalVideoWidth(0)
+        } else {
+            setOriginalVideoWidth(200);
+        }
+        setOriginalVideoOn(!originalVideoOn)
+    }
+
+    const [editUsernameModalEnabled, setEditUsernameModalEnabled] = useState(false)
+    const showModal = () => {
+        setEditUsernameModalEnabled(true)
+    }
+
+    const editUsernameHandler = (username?: string, random?: boolean) => {
+        if (random) {
+            // remove local storage
+            // generate new username, and set it
+        }
+        setUsername(username)
+        setEditUsernameModalEnabled(false)
+        // TODO save to local storage, and re-read on startup everytime.
+    }
+
+    const closeEditUsernameModalHandler = () => {
+        setEditUsernameModalEnabled(false)
     }
 
     return (
@@ -81,28 +116,27 @@ export default function VideoRoom(): ReactElement {
                 <title>Anonymous Video Calls</title>
             </Head>
             <div className='container'>
+                <EditUsernameModal show={editUsernameModalEnabled}
+                                   handleSubmit={editUsernameHandler}
+                                   handleClose={closeEditUsernameModalHandler}/>
+                <div style={{position: "absolute", top: 0, right: 0}} ref={fpsCounter}/>
                 <div>
-                    <label className="text-lg" htmlFor={"usernameField"}>What is your preferred name:</label>
-                    <input value={usernameField} onChange={onChangeName} name={"usernameField"} enterKeyHint={"enter"}
-                           placeholder={"Bob"}
-                           aria-label={"Enter a username..."} required={true}/>
-                    <button onClick={connect}>Connect</button>
+                    <div>
+                        <p className={"text-yellow-400 text-2xl"}>Hello
+                            👋, {(username && username.length > 0) ? username : "anonymous"}</p>
+                    </div>
+                    <button className={"text-green-200"} onClick={showModal}>Edit</button>
                 </div>
-                <h1>Only you see you, {(username && username.length > 0) ? username : "anonymous"}:</h1>
                 <video
                     playsInline
                     autoPlay
                     loop
-                    width={ORIGINAL_VIDEO_WIDTH}
+                    width={originalVideoWidth}
                     muted
                     ref={videoRef}
                 ></video>
-                <h1>Everyone else sees this:</h1>
                 <div ref={renderOutputRef}
                 >
-                </div>
-                <div>
-                    <p ref={fpsCounter}>FPS</p>
                 </div>
                 <div>
                     <button onClick={joinCallHandler} disabled={!callButtonEnabled}>
@@ -113,6 +147,9 @@ export default function VideoRoom(): ReactElement {
                     </button>
                     <button onClick={toggleTracking}>
                         {videoIsRunning ? "Pause tracking" : "Resume tracking"}
+                    </button>
+                    <button onClick={toggleOriginalVideo}>
+                        {originalVideoOn ? "Hide real video" : "Show real video"}
                     </button>
                 </div>
                 {CallStateDisplay({callState})}

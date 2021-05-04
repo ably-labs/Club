@@ -1,163 +1,42 @@
 import Head from 'next/head';
 import Link from 'next/link';
+import Image from 'next/image'
 
 export default function Home() {
+    const createLink = (text: string, href: string) => {
+        return <a href={href} className={"hover:underline"}>{text}</a>
+    }
+
     return (
-        <div className='container'>
+        <div className={"container text-center flex flex-col h-screen"}>
             <Head>
                 <title>Anonymous Calls</title>
                 <link rel='icon' href='/favicon.ico'/>
             </Head>
-
-            <main>
+            <div className={"flex-grow flex flex-col justify-center"}>
                 <Link href='/video-room/'>
-                    <a>Join Video Room</a>
+                    <a className={"block text-blue-900 text-2xl hover:underline"}>Join Anonymous Video Room</a>
                 </Link>
-            </main>
+                <div>Stay (partially) anonymous.</div>
+            </div>
 
-            <footer>by Ben Butterworth</footer>
-
-            <style jsx>{`
-        .container {
-          min-height: 100vh;
-          padding: 0 0.5rem;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-        }
-
-        main {
-          padding: 5rem 0;
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-        }
-
-        footer {
-          width: 100%;
-          height: 100px;
-          border-top: 1px solid #eaeaea;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-        }
-
-        footer img {
-          margin-left: 0.5rem;
-        }
-
-        footer a {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-        }
-
-        a {
-          color: inherit;
-          text-decoration: none;
-        }
-
-        .title a {
-          color: #0070f3;
-          text-decoration: none;
-        }
-
-        .title a:hover,
-        .title a:focus,
-        .title a:active {
-          text-decoration: underline;
-        }
-
-        .title {
-          margin: 0;
-          line-height: 1.15;
-          font-size: 4rem;
-        }
-
-        .title,
-        .description {
-          text-align: center;
-        }
-
-        .description {
-          line-height: 1.5;
-          font-size: 1.5rem;
-        }
-
-        code {
-          background: #494949;
-          border-radius: 5px;
-          padding: 0.75rem;
-          font-size: 1.1rem;
-          font-family: Menlo, Monaco, Lucida Console, Liberation Mono,
-          DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace;
-        }
-
-        .grid {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-wrap: wrap;
-
-          max-width: 800px;
-          margin-top: 3rem;
-        }
-
-        .card {
-          margin: 1rem;
-          flex-basis: 45%;
-          padding: 1.5rem;
-          text-align: left;
-          color: inherit;
-          text-decoration: none;
-          border: 1px solid #eaeaea;
-          border-radius: 10px;
-          transition: color 0.15s ease, border-color 0.15s ease;
-        }
-
-        .card:hover,
-        .card:focus,
-        .card:active {
-          color: #0070f3;
-          border-color: #0070f3;
-        }
-
-        .card h3 {
-          margin: 0 0 1rem 0;
-          font-size: 1.5rem;
-        }
-
-        .card p {
-          margin: 0;
-          font-size: 1.25rem;
-          line-height: 1.5;
-        }
-
-        @media (max-width: 600px) {
-          .grid {
-            width: 100%;
-            flex-direction: column;
-          }
-        }
-      `}</style>
-
-            <style jsx global>{`
-        html,
-        body {
-          padding: 0;
-          margin: 0;
-          font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
-            Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue,
-            sans-serif;
-        }
-
-        * {
-          box-sizing: border-box;
-        }
-      `}</style>
+            <div className={"flex-shrink m-4"}>
+                <div className={"mb-5"}>
+                    <p className={"font-bold"}>Technologies:{" "}</p>
+                    <p>
+                        {createLink("Ably", "https://ably.com/")}{", "}
+                        {createLink("Three.js", "https://threejs.org/")}{", "}
+                        {createLink("MediaPipe", "https://mediapipe.dev/")}{", "}
+                        {createLink("Next.JS", "https://nextjs.org/")}{", "}
+                        {createLink("React", "https://reactjs.org/")}{". "}
+                    </p>
+                </div>
+                <p className={"font-bold hover:underline"}>
+                    <a className={"hover:opacity-20"} href={"https://github.com/ben-xD/Skelly/"}>
+                    <Image src={"/images/github.png"} width={48} height={48}></Image>
+                </a>
+                </p>
+            </div>
         </div>
     );
 }

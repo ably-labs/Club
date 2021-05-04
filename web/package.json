@@ -8,18 +8,16 @@
     "start": "next start"
   },
   "dependencies": {
-    "@mediapipe/face_mesh": "^0.1.1617147239",
-    "@tensorflow-models/face-landmarks-detection": "^0.0.3",
-    "@tensorflow/tfjs-backend-webgl": "^3.6.0",
-    "@tensorflow/tfjs-converter": "^3.6.0",
-    "@tensorflow/tfjs-core": "^3.6.0",
+    "@mediapipe/holistic": "^0.3.1620080860",
     "ably": "^1.2.9",
     "next": "^10.0.0",
     "react": "17.0.1",
     "react-dom": "17.0.1",
     "socket.io": "^4.0.1",
     "socket.io-client": "^4.0.1",
+    "stats.js": "^0.17.0",
     "three": "^0.128.0",
+    "unique-names-generator": "^4.4.0",
     "uuid": "^8.3.2",
     "webrtc-adapter": "^7.7.1"
   },

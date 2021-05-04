@@ -14,8 +14,10 @@ export default class Messaging {
     private channel: Types.RealtimeChannelPromise | null = null
     private setCallState: (value: (((prevState: CallState) => CallState) | CallState)) => void;
     private connectedClientIds: string[];
+    private username: string;
 
     constructor(username: string, setCallState: (value: (((prevState: CallState) => CallState) | CallState)) => void) {
+        this.username = username
         this.setCallState = setCallState
         if (!process.env.NEXT_PUBLIC_ABLY_API_KEY) {
             console.error(`API key is missing, it is ${process.env.NEXT_PUBLIC_ABLY_API_KEY}.`)
@@ -39,13 +41,14 @@ export default class Messaging {
     }
 
     setUsername = (username) => {
-        this.ablyClient.close()
+        this.username = username
+        this.ablyClient.channels.get(this.CHANNEL_ID).detach()
         this.connect(username)
         // TODO is there an easier way to change the clientId?
         // this.ablyClient.clientId = username
     }
 
-    joinRoom = async (): Promise<void> => {
+    connectToLobby = async (): Promise<void> => {
         const channelOptions: Types.ChannelOptions = {
             params: {
                 rewind: "0",
@@ -53,16 +56,8 @@ export default class Messaging {
         }
         this.channel = this.ablyClient.channels.get(this.CHANNEL_ID, channelOptions)
 
-        const presenceListPromise = this.channel.presence.get()
-
-        // await Promise.all([
-        //     this.channel.presence.enter(),
-        //     presenceListPromise
-        // ])
-        // const presenceMessages = await presenceListPromise
         try {
-            await this.channel.presence.enter()
-            const presenceMessages = await this.channel.presence.get() // aka members
+            const presenceMessages = await this.channel.presence.get()
             this.connectedClientIds = presenceMessages.map(presenceMessage => {
                 return presenceMessage.clientId
             })
@@ -80,16 +75,46 @@ export default class Messaging {
                     currentUsers: this.connectedClientIds
                 })
             })
+
+            this.channel.presence.subscribe('leave', (message => {
+                this.connectedClientIds = this.connectedClientIds.filter((value, index) => value != message.clientId)
+                this.setCallState({
+                    connection: "connected",
+                    currentUsers: this.connectedClientIds
+                })
+            }))
         } catch (e) {
             console.warn(e)
         }
     }
 
+    joinLobbyPresence = async () => {
+        await this.channel.presence.enter()
+        this.connectedClientIds = this.connectedClientIds.filter((value)=> value !== this.username)
+        this.setCallState({
+            connection: "connected",
+            currentUsers: this.connectedClientIds
+        })
+    }
+
+    leaveLobbyPresense = async () => {
+        await this.channel.presence.leave()
+        this.connectedClientIds = this.connectedClientIds.filter((value)=> value !== this.username)
+        this.setCallState({
+            connection: "connected",
+            currentUsers: this.connectedClientIds
+        });
+    }
+
     async exitRoom(): Promise<void> {
-        this.ablyClient.close()
+        await this.channel.detach()
         this.setCallState({
             connection: "disconnected",
             currentUsers: []
         })
+    }
+
+    async close() {
+        this.ablyClient.close()
     }
 }

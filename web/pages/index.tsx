@@ -10,11 +10,12 @@ export default function Home() {
     return (
         <div className={"container text-center flex flex-col h-screen max-w-none"}>
             <Head>
-                <title>Anonymous Room with a Spatial Environment</title>
+                <title>Club</title>
                 <link rel='icon' href='/favicon.ico'/>
             </Head>
             <div className={"flex-grow flex flex-col justify-center"}>
-                <div className={"block text-2xl"}>Anonymous Room with a Spatial Environment</div>
+                <p className={"block text-4xl font-bold"}>Club,</p>
+                <p className={"block text-2xl"}> anonymous meeting rooms with a spatial environment</p>
                 <Link href='/video-room/'>
                     <a className={"hover:underline text-blue-600 text-lg"}>join the lobby now</a>
                 </Link>

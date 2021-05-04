@@ -5,7 +5,10 @@ import VideoRenderer from "../public/ts/VideoRenderer";
 import Messaging, {CallState} from "../public/ts/Messaging";
 import CallStateDisplay from "../public/ts/CallStateDisplay";
 import EditUsernameModal from "../public/ts/EditUsernameModal";
-import {generateRandomUsername} from "../public/ts/name_utilities";
+import {generateRandomUsername, pickRandomTailwindColor} from "../public/ts/name_utilities";
+import {BrowserView} from 'react-device-detect';
+import {FaEdit, FaPause, FaPhone, FaPlay} from "react-icons/fa";
+import VideoRoomOptions from "../public/ts/ui/videoRoomOptions";
 
 export default function VideoRoom(): ReactElement {
     const [usernameField, setUsernameField] = useState('')
@@ -22,6 +25,7 @@ export default function VideoRoom(): ReactElement {
     const fpsCounterRef = useRef<HTMLDivElement>(null);
     const [callButtonEnabled, setCallButtonEnabled] = useState(true);
     const [hangUpButtonEnabled, setHangUpButtonEnabled] = useState(false);
+    const [color, setColor] = useState(pickRandomTailwindColor())
 
     const DEFAULT_ORIGINAL_VIDEO_WIDTH = 0
     const [originalVideoOn, setOriginalVideoOn] = useState(false)
@@ -41,35 +45,31 @@ export default function VideoRoom(): ReactElement {
     useEffect(() => {
         setCallButtonEnabled(false)
         setHangUpButtonEnabled(false)
+        const username = generateRandomUsername()
+        setUsername(username)
         messagingRef.current = new Messaging(username, setCallState);
         videoRenderer.current = new VideoRenderer(videoRef.current, renderOutputRef.current, fpsCounterRef.current);
         (async () => {
             videoRenderer.current.videoElement = await loadCameraFeed(videoRef.current);
             setCallButtonEnabled(true)
+            await messagingRef.current.connectToLobby()
         })();
-
-        setUsername(generateRandomUsername())
 
         return () => {
             videoRenderer.current.dispose()
         }
     }, []);
 
-    const connect = async () => {
-        setUsername(usernameField)
-        messagingRef.current.setUsername(usernameField)
-    }
-
     const joinCallHandler = async () => {
         setCallButtonEnabled(false);
         setHangUpButtonEnabled(true);
-        await messagingRef.current.joinRoom()
+        await messagingRef.current.joinLobbyPresence()
     };
 
     const hangUpHandler = async () => {
         setCallButtonEnabled(true);
         setHangUpButtonEnabled(false);
-        await messagingRef.current.exitRoom()
+        await messagingRef.current.leaveLobbyPresense()
     };
 
     const toggleTracking = async () => {
@@ -97,6 +97,8 @@ export default function VideoRoom(): ReactElement {
 
     const editUsernameHandler = (username?: string) => {
         setUsername(username)
+        messagingRef.current.setUsername(username)
+        setColor(pickRandomTailwindColor())
         setEditUsernameModalEnabled(false)
         // TODO save to local storage, and re-read on startup everytime.
     }
@@ -106,7 +108,7 @@ export default function VideoRoom(): ReactElement {
     }
 
     return (
-        <div className='container justify-center text-center flex flex-col mx-auto'>
+        <div className='container align-middle flex flex-col mx-auto'>
             <Head>
                 <title>Anonymous Video Calls</title>
             </Head>
@@ -114,48 +116,57 @@ export default function VideoRoom(): ReactElement {
                                handleSubmit={editUsernameHandler}
                                handleClose={closeEditUsernameModalHandler}/>
             <div className={"flex flex-col flex-grow"}>
-                <div style={{position: "fixed", top: 0, right: 0}} ref={fpsCounterRef}/>
-                <div>
-                    <p className={"text-yellow-800 text-2xl"}>Hello
-                        👋, {(username && username.length > 0) ? username : "anonymous"}
-                        <button className={"text-green-200"} onClick={toggleEditUsernameModal}>📝</button>
+                <BrowserView>
+                    <div style={{position: "fixed", top: 0, right: 0}} ref={fpsCounterRef}/>
+                </BrowserView>
+                <div className={"flex justify-center"}>
+                    <p className={"text-gray-700 text-2xl"}>Hello
+                        👋,{" "}
                     </p>
+                    <p className={`text-${color}-600 text-2xl font-bold mx-2`}>{(username && username.length > 0) ? username : "anonymous"}</p>
+                    <button className={`text-${color}-700 hover:text-${color}-400`} onClick={toggleEditUsernameModal}>
+                        <FaEdit size={20}/></button>
                 </div>
                 <video
-                    style={{transform: "scaleX(-1)"}}
+                    style={{
+                        transform: "scaleX(-1)",
+                        paddingLeft: 0,
+                        paddingRight: 0,
+                        marginLeft: "auto",
+                        marginRight: "auto"
+                    }}
                     playsInline
                     autoPlay
                     loop
                     width={originalVideoWidth}
                     muted
                     ref={videoRef}
-                ></video>
-                <div ref={renderOutputRef}
-                >
-                </div>
-                <div>
-                    <button className={"bg-green-500 hover:bg-green-700 text-white mx-2 font-bold py-2 px-4 rounded"}
+                />
+                <div ref={renderOutputRef}/>
+                <div className={"flex"}>
+                    <div className={"flex"}>
+                        <button
+                            aria-disabled={!callButtonEnabled}
+                            className={"bg-green-500 hover:bg-green-700 text-white mx-2 font-bold py-2 px-4 rounded disabled:bg-gray-500 disabled:cursor-not-allowed"}
                             onClick={joinCallHandler} disabled={!callButtonEnabled}>
-                        Join
+                            Join <FaPhone/>
+                        </button>
+                    </div>
+                    <button className={"bg-indigo-500 hover:bg-indigo-700 text-white mx-2 font-bold py-2 px-4 rounded disabled:bg-gray-500 disabled:cursor-not-allowed"}
+                            onClick={toggleTracking} disabled={!hangUpButtonEnabled}>
+                        {videoIsRunning ? <FaPause/> : <FaPlay/>}
                     </button>
-                    <button className={"bg-red-500 hover:bg-red-700 text-white mx-2 font-bold py-2 px-4 rounded"}
+                    <button className={"bg-red-500 hover:bg-red-700 text-white mx-2 font-bold py-2 px-4 rounded disabled:bg-gray-500 disabled:cursor-not-allowed"}
                             onClick={hangUpHandler} disabled={!hangUpButtonEnabled}>
                         Hang up
                     </button>
-                    <button className={"text-gray-700 rounded px-4 py-2 mx-2 hover:bg-gray-300"}
-                            onClick={toggleTracking}>
-                        {videoIsRunning ? "Pause tracking" : "Resume tracking"}
-                    </button>
-                    <button className={"text-gray-700 rounded px-4 py-2 mx-2 hover:bg-gray-300"}
-                            onClick={toggleOriginalVideo}>
-                        {originalVideoOn ? "Debug: Hide real video (local only)" : "Debug: Show real video (local only)"}
-                    </button>
+                    <VideoRoomOptions/>
                 </div>
                 {CallStateDisplay({callState})}
             </div>
-            <div className={"flex-shrink my-4 hover:underline"}>
+            <div className={"my-4 hover:underline text-blue-400"}>
                 <Link href='/'>
-                    <a>Go to homepage</a>
+                    <a>Back to homepage</a>
                 </Link>
             </div>
         </div>

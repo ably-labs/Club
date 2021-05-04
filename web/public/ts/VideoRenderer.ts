@@ -46,7 +46,7 @@ export default class VideoRenderer {
         this.height = this.width / this.aspectRatio
 
         this.stats = new Stats()
-        this.stats.dom.style.cssText="position:relative;top:0;left:0;cursor:pointer;opacity:0.9;z-index:10000"
+        this.stats.dom.style.cssText = "position:relative;top:0;left:0;cursor:pointer;opacity:0.9;z-index:10000"
         this.stats.showPanel(0);
         this.fpsOutput.appendChild(this.stats.dom)
 
@@ -135,21 +135,24 @@ export default class VideoRenderer {
      * @param normalizedLandmarks1D All face landmarks for 1 face in a 1-dimensional list: x1, y1, z1, x2, y2, z2.
      */
     updateScene = (normalizedLandmarks1D: Float32Array) => {
-        if (!this.meshPoints) {
-            const MESH_COLOR = 0x0
-            let material = new PointsMaterial({color: MESH_COLOR, size: 2});
-            const geometry = new BufferGeometry()
-            this.meshPoints = new Points(geometry, material)
-            this.meshPoints.geometry.setAttribute('position', new BufferAttribute(normalizedLandmarks1D, 3))
-            this.addFaceMeshResources(geometry, material, this.meshPoints)
-            this.scene.add(this.meshPoints)
-        } else {
-            // Shouldn't be gc'ing in render
-            this.meshPoints.geometry.dispose()
-            this.meshPoints.geometry.setAttribute('position', new BufferAttribute(normalizedLandmarks1D, 3))
-            this.meshPoints.geometry.attributes["position"].needsUpdate = true;
+        if (normalizedLandmarks1D) {
+            if (!this.meshPoints) {
+                const MESH_COLOR = 0x0
+                let material = new PointsMaterial({color: MESH_COLOR, size: 2});
+                const geometry = new BufferGeometry()
+                this.meshPoints = new Points(geometry, material)
+                this.meshPoints.geometry.setAttribute('position', new BufferAttribute(normalizedLandmarks1D, 3))
+                this.addFaceMeshResources(geometry, material, this.meshPoints)
+                this.scene.add(this.meshPoints)
+            } else {
+                // Shouldn't be gc'ing in render
+                this.meshPoints.geometry.dispose()
+                this.meshPoints.geometry.setAttribute('position', new BufferAttribute(normalizedLandmarks1D, 3))
+                this.meshPoints.geometry.attributes["position"].needsUpdate = true;
+            }
+            this.renderer.render(this.scene, this.camera);
         }
-        this.renderer.render(this.scene, this.camera);
+
         if (this.renderId) window.cancelAnimationFrame(this.renderId)
         if (this.isRunning) {
             this.renderId = window.requestAnimationFrame(() => {
@@ -157,7 +160,7 @@ export default class VideoRenderer {
                 this.step()
             })
         }
-    }
+    };
 
     dispose() {
         console.log("Disposing VideoRenderer now...")

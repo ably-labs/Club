@@ -1,5 +1,6 @@
 import Ably, {Realtime} from 'ably/promises'
 import {Types} from "ably";
+import UserMedia from "./models/UserMedia";
 
 export type ConnectionState = "connected" | "disconnected"
 
@@ -15,7 +16,7 @@ export default class Messaging {
     private setCallState: (value: (((prevState: CallState) => CallState) | CallState)) => void;
     private connectedClientIds: string[];
     private username: string;
-    private updateRemoteFaceMesh: (faceArray: Float32Array, clientId: string) => void
+    private updateRemoteFaceMeshs: (remoteUserMedia: UserMedia) => void
 
     constructor(username: string,
                 setCallState: (value: (((prevState: CallState) => CallState) | CallState)) => void,
@@ -28,8 +29,8 @@ export default class Messaging {
         this.connect(username)
     }
 
-    setUpdateRemoteFaceMesh(callback: (faceArray: Float32Array, clientId: string) => void) {
-        this.updateRemoteFaceMesh = callback
+    setUpdateRemoteFaceMesh(callback: (remoteUserMedias: UserMedia) => void) {
+        this.updateRemoteFaceMeshs = callback
     }
 
     connect = (username: string, connectedCallback?: () => void) => {
@@ -77,8 +78,13 @@ export default class Messaging {
             })
 
             this.channel.subscribe("face", (message: Types.Message) => {
-                const faceArray = message.data as Float32Array
-                this.updateRemoteFaceMesh(faceArray, message.clientId)
+                if (message.clientId !== this.username) {
+                    const faceArray = new Float32Array(message.data);
+                    this.updateRemoteFaceMeshs({
+                        clientId: message.clientId,
+                        normalizedLandmarks1D: faceArray
+                    })
+                }
             })
 
             this.channel.presence.subscribe("enter", (member) => {

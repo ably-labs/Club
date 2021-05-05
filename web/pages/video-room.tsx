@@ -11,7 +11,6 @@ import {FaEdit, FaPause, FaPhone, FaPlay} from "react-icons/fa";
 import VideoRoomOptions from "../public/ts/ui/videoRoomOptions";
 
 export default function VideoRoom(): ReactElement {
-    const [usernameField, setUsernameField] = useState('')
     const [username, setUsername] = useState('')
     const [callState, setCallState] = useState<CallState>({
         connection: "disconnected",
@@ -19,7 +18,6 @@ export default function VideoRoom(): ReactElement {
     });
     const renderOutputRef = useRef(null);
     const videoRef = useRef<HTMLVideoElement>(null);
-    const [videoIsRunning, setVideoIsRunning] = useState(true);
     const videoRendererRef = useRef<VideoRenderer>(null);
     const messagingRef = useRef<Messaging>(null);
     const fpsCounterRef = useRef<HTMLDivElement>(null);
@@ -30,6 +28,7 @@ export default function VideoRoom(): ReactElement {
     const DEFAULT_ORIGINAL_VIDEO_WIDTH = 0
     const [originalVideoOn, setOriginalVideoOn] = useState(false)
     const [originalVideoWidth, setOriginalVideoWidth] = useState(DEFAULT_ORIGINAL_VIDEO_WIDTH)
+    const [trackingEnabled, setTrackingEnabled] = useState(true)
 
     const loadCameraFeed = async (videoElement: HTMLVideoElement): Promise<HTMLVideoElement> => {
         videoElement.srcObject = await navigator.mediaDevices.getUserMedia({
@@ -45,7 +44,7 @@ export default function VideoRoom(): ReactElement {
         setUsername(username)
         messagingRef.current = new Messaging(username, setCallState);
         videoRendererRef.current = new VideoRenderer(videoRef.current, renderOutputRef.current, fpsCounterRef.current, messagingRef.current);
-        messagingRef.current.setUpdateRemoteFaceMesh(videoRendererRef.current.updateRemoteScene);
+        messagingRef.current.setUpdateRemoteFaceMesh(videoRendererRef.current.updateRemoteUserMedia);
         (async () => {
             videoRendererRef.current.videoElement = await loadCameraFeed(videoRef.current);
             setCallButtonEnabled(true)
@@ -72,12 +71,8 @@ export default function VideoRoom(): ReactElement {
     };
 
     const toggleTracking = async () => {
-        if (!videoIsRunning) {
-            await videoRendererRef.current.start()
-        } else {
-            videoRendererRef.current.stopRender()
-        }
-        setVideoIsRunning(!videoIsRunning)
+        await videoRendererRef.current.setTracking(!trackingEnabled)
+        setTrackingEnabled(!trackingEnabled)
     }
 
     const toggleOriginalVideoFeed = () => {
@@ -156,8 +151,7 @@ export default function VideoRoom(): ReactElement {
                     </div>
                     <button
                         className={"bg-indigo-500 hover:bg-indigo-700 text-white mx-2 font-bold py-2 px-4 rounded disabled:bg-gray-500 disabled:cursor-not-allowed"}
-                        onClick={toggleTracking} disabled={!hangUpButtonEnabled}>
-                        {videoIsRunning ? <FaPause/> : <FaPlay/>}
+                        onClick={toggleTracking}>{trackingEnabled ? <FaPause/> : <FaPlay/>}
                     </button>
                     <button
                         className={"bg-red-500 hover:bg-red-700 text-white mx-2 font-bold py-2 px-4 rounded disabled:bg-gray-500 disabled:cursor-not-allowed"}

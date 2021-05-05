@@ -12,6 +12,7 @@ import {
 import MediapipeHolisticCalculator from "./MediapipeHolisticCalculator";
 import Stats from 'stats.js'
 import Messaging from "./Messaging";
+import UserMedia from "./models/UserMedia";
 
 /**
  * Renders video
@@ -148,13 +149,6 @@ export default class VideoRenderer {
         })
     }
 
-    // TODO support more than 1 remote face
-    // TODO ensure this renders nicely, add it to the scene
-    updateRemoteScene = (normalizedLandmarks1D: Float32Array, clientId: string) => {
-        console.log(`Received remote face from ${clientId}... render it now please`)
-        console.log({normalizedLandmarks1D})
-    }
-
     /**
      * Update the face mesh state (in the three.js scene) in this class, which is used in the render loop.
      * @param normalizedLandmarks1D All face landmarks for 1 face in a 1-dimensional list: x1, y1, z1, x2, y2, z2.
@@ -167,14 +161,18 @@ export default class VideoRenderer {
                 let material = new PointsMaterial({color: MESH_COLOR, size: 2});
                 const geometry = new BufferGeometry()
                 this.meshPoints = new Points(geometry, material)
+                this.meshPoints.name = "User face mesh"
                 this.meshPoints.geometry.setAttribute('position', new BufferAttribute(normalizedLandmarks1D, 3))
                 this.addFaceMeshResources(geometry, material, this.meshPoints)
                 this.scene.add(this.meshPoints)
             } else {
                 // Shouldn't be gc'ing in render
-                this.meshPoints.geometry.dispose()
-                this.meshPoints.geometry.setAttribute('position', new BufferAttribute(normalizedLandmarks1D, 3))
-                this.meshPoints.geometry.attributes["position"].needsUpdate = true;
+                // this.meshPoints.geometry.dispose()
+                if (this.trackingEnabled) {
+                    this.meshPoints.geometry.setAttribute('position', new BufferAttribute(normalizedLandmarks1D, 3))
+                    this.meshPoints.geometry.attributes["position"].needsUpdate = true;
+                }
+                this.addRemoteFaceToScene()
             }
             this.renderer.render(this.scene, this.camera);
         }
@@ -188,11 +186,48 @@ export default class VideoRenderer {
         }
     };
 
+    private remoteUserMedias = new Map<string, UserMedia>()
+    updateRemoteUserMedia = (remoteUserMedia: UserMedia) => {
+        this.remoteUserMedias.set(remoteUserMedia.clientId, remoteUserMedia)
+    }
+
+    removeRemoteUser = (clientId: string) => {
+        this.remoteUserMedias.delete(clientId)
+        this.remoteUserMeshPoints.delete(clientId)
+    }
+
+    private remoteUserMeshPoints = new Map<string, Points>()
+
+    private addRemoteFaceToScene() {
+        this.remoteUserMedias.forEach((userMedia: UserMedia, key: string) => {
+            if (this.remoteUserMeshPoints.has(userMedia.clientId)) {
+                const remoteUserMeshPoints = this.remoteUserMeshPoints.get(userMedia.clientId)
+                remoteUserMeshPoints.geometry.setAttribute('position', new BufferAttribute(userMedia.normalizedLandmarks1D, 3))
+                remoteUserMeshPoints.geometry.attributes["position"].needsUpdate = true;
+            } else {
+                const MESH_COLOR = 0x33FF71
+                let material = new PointsMaterial({color: MESH_COLOR, size: 2});
+                const geometry = new BufferGeometry()
+                geometry.setAttribute('position', new BufferAttribute(userMedia.normalizedLandmarks1D, 3))
+                const remoteUserMeshPoints = new Points(geometry, material)
+                remoteUserMeshPoints.name = `${userMedia.clientId} face mesh`
+                this.remoteUserMeshPoints.set(userMedia.clientId, remoteUserMeshPoints)
+                this.addFaceMeshResources(geometry, material, remoteUserMeshPoints)
+                this.scene.add(remoteUserMeshPoints)
+            }
+        }, this)
+    }
+
     dispose() {
         console.log("Disposing VideoRenderer now...")
         this.renderer.dispose()
         this.stopRender()
         this.holisticCalculator?.close()
         this.removePreviousFaceMesh()
+    }
+
+    private trackingEnabled: boolean = true
+    async setTracking(enabled: boolean) {
+        this.trackingEnabled = enabled
     }
 }

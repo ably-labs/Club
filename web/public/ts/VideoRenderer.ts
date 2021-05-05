@@ -75,20 +75,22 @@ export default class VideoRenderer {
 
         this.holisticCalculator = new MediapipeHolisticCalculator(this.updateScene, this.width, this.height)
         if (videoElement.readyState != 4) { // https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/readyState
-            videoElement.addEventListener('canplay', () => {
-                this.start()
+            videoElement.addEventListener('canplay', async () => {
+                await this.start()
             }, {once: true})
         } else {
             this.start()
         }
     }
 
-    scheduleFaceDataPublishing() {
+    scheduleFaceDataPublishing(framesPerSecond: number = 1) {
+        window.clearInterval(this.periodicFaceData)
+        const intervalInMilliseconds = 1000 / framesPerSecond
         this.periodicFaceData = window.setInterval(async () => {
             if (this.latestLandmarks) {
                 await this.messaging.publishToLobby(this.latestLandmarks);
             }
-        }, 1000)
+        }, intervalInMilliseconds)
     }
 
     cancelFaceDataPublishing() {
@@ -193,6 +195,8 @@ export default class VideoRenderer {
 
     removeRemoteUser = (clientId: string) => {
         this.remoteUserMedias.delete(clientId)
+        const points = this.remoteUserMeshPoints.get(clientId)
+        points.parent.remove(points)
         this.remoteUserMeshPoints.delete(clientId)
     }
 
@@ -227,6 +231,7 @@ export default class VideoRenderer {
     }
 
     private trackingEnabled: boolean = true
+
     async setTracking(enabled: boolean) {
         this.trackingEnabled = enabled
     }

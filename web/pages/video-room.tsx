@@ -44,7 +44,8 @@ export default function VideoRoom(): ReactElement {
         setUsername(username)
         messagingRef.current = new Messaging(username, setCallState);
         videoRendererRef.current = new VideoRenderer(videoRef.current, renderOutputRef.current, fpsCounterRef.current, messagingRef.current);
-        messagingRef.current.setUpdateRemoteFaceMesh(videoRendererRef.current.updateRemoteUserMedia);
+        messagingRef.current.setUpdateRemoteFaceHandler(videoRendererRef.current.updateRemoteUserMedia);
+        messagingRef.current.setRemoveRemoteUserHandler(videoRendererRef.current.removeRemoteUser);
         (async () => {
             videoRendererRef.current.videoElement = await loadCameraFeed(videoRef.current);
             setCallButtonEnabled(true)
@@ -59,7 +60,7 @@ export default function VideoRoom(): ReactElement {
     const joinCallHandler = async () => {
         setCallButtonEnabled(false);
         setHangUpButtonEnabled(true);
-        videoRendererRef.current.scheduleFaceDataPublishing()
+        videoRendererRef.current.scheduleFaceDataPublishing(1)
         await messagingRef.current.joinLobbyPresence()
     };
 

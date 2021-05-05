@@ -17,6 +17,7 @@ export default class Messaging {
     private connectedClientIds: string[];
     private username: string;
     private updateRemoteFaceMeshs: (remoteUserMedia: UserMedia) => void
+    private removeRemoteUser: (clientId: string) => void
 
     constructor(username: string,
                 setCallState: (value: (((prevState: CallState) => CallState) | CallState)) => void,
@@ -29,7 +30,7 @@ export default class Messaging {
         this.connect(username)
     }
 
-    setUpdateRemoteFaceMesh(callback: (remoteUserMedias: UserMedia) => void) {
+    setUpdateRemoteFaceHandler(callback: (remoteUserMedias: UserMedia) => void) {
         this.updateRemoteFaceMeshs = callback
     }
 
@@ -98,6 +99,7 @@ export default class Messaging {
 
             this.channel.presence.subscribe('leave', (message => {
                 this.connectedClientIds = this.connectedClientIds.filter((value, index) => value != message.clientId)
+                this.removeRemoteUser(message.clientId)
                 this.setCallState({
                     connection: "connected",
                     currentUsers: this.connectedClientIds
@@ -143,5 +145,9 @@ export default class Messaging {
 
     async close() {
         this.ablyClient.close()
+    }
+
+    setRemoveRemoteUserHandler(removeRemoteUser: (clientId: string) => void) {
+        this.removeRemoteUser = removeRemoteUser
     }
 }

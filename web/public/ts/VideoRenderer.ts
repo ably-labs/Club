@@ -73,7 +73,12 @@ export default class VideoRenderer {
         // cameraControls.target.set()
         // this.faceMesh = new MediaPipeFaceMeshCalculator(this.updateFaceMesh, this.aspectRatio, viewSize)
 
-        this.holisticCalculator = new MediapipeHolisticCalculator(this.updateScene, this.width, this.height)
+        const scaleFactor = 0.2
+        this.holisticCalculator = new MediapipeHolisticCalculator(
+            this.updateScene,
+            this.width * scaleFactor,
+            this.height * scaleFactor
+        );
         if (videoElement.readyState != 4) { // https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/readyState
             videoElement.addEventListener('canplay', async () => {
                 await this.start()
@@ -112,8 +117,7 @@ export default class VideoRenderer {
         }
         if (this.isRunning) {
             this.isRunning = true
-            await this.holisticCalculator.send(this.videoElement)
-            // code continues in [MediaPipeFaceMeshCalculator.imageResultHandler], which eventually calls this.updateSceneWithFaceMesh
+            await this.holisticCalculator.send(this.videoElement) //  continues in [MediaPipeFaceMeshCalculator.imageResultHandler]
         }
     }
 
@@ -128,67 +132,45 @@ export default class VideoRenderer {
         }
     }
 
-    private faceMeshResources = new Set();
-
-    addFaceMeshResources(...resources: any) {
-        for (const resource of resources) {
-            if (resource.dispose || resource instanceof Object3D) {
-                this.faceMeshResources.add(resource)
-            }
-        }
-    }
-
-    private removePreviousFaceMesh() {
-        this.faceMeshResources.forEach((resource: any) => {
-            if (resource instanceof Object3D) {
-                if (resource.parent) {
-                    resource.parent.remove(resource);
-                }
-            }
-            if (resource.dispose) {
-                resource.dispose()
-            }
-        })
-    }
-
     /**
      * Update the face mesh state (in the three.js scene) in this class, which is used in the render loop.
      * @param normalizedLandmarks1D All face landmarks for 1 face in a 1-dimensional list: x1, y1, z1, x2, y2, z2.
      */
     updateScene = (normalizedLandmarks1D: Float32Array) => {
         this.latestLandmarks = normalizedLandmarks1D
-        if (normalizedLandmarks1D) {
-            if (!this.meshPoints) {
-                const MESH_COLOR = 0x0
-                let material = new PointsMaterial({color: MESH_COLOR, size: 2});
-                const geometry = new BufferGeometry()
-                this.meshPoints = new Points(geometry, material)
-                this.meshPoints.name = "User face mesh"
-                this.meshPoints.geometry.setAttribute('position', new BufferAttribute(normalizedLandmarks1D, 3))
-                this.addFaceMeshResources(geometry, material, this.meshPoints)
-                this.scene.add(this.meshPoints)
-            } else {
-                // Shouldn't be gc'ing in render
-                // this.meshPoints.geometry.dispose()
-                if (this.trackingEnabled) {
-                    this.meshPoints.geometry.setAttribute('position', new BufferAttribute(normalizedLandmarks1D, 3))
-                    this.meshPoints.geometry.attributes["position"].needsUpdate = true;
-                }
-                this.addRemoteFaceToScene()
-            }
-            this.renderer.render(this.scene, this.camera);
-        }
+        this.updateSceneWithLocalFace()
+        this.updateSceneWithRemoteFaces()
+        this.renderer.render(this.scene, this.camera);
 
         if (this.renderId) window.cancelAnimationFrame(this.renderId)
         if (this.isRunning) {
-            this.renderId = window.requestAnimationFrame(() => {
+            this.renderId = window.requestAnimationFrame(async () => {
                 this.stats.end()
-                this.step()
+                await this.step()
             })
         }
     };
 
-    private remoteUserMedias = new Map<string, UserMedia>()
+    private updateSceneWithLocalFace() {
+        if (!this.latestLandmarks) {
+            return
+        }
+        if (!this.meshPoints) {
+            const MESH_COLOR = 0x0
+            let material = new PointsMaterial({color: MESH_COLOR, size: 1.5});
+            const geometry = new BufferGeometry()
+            this.meshPoints = new Points(geometry, material)
+            this.meshPoints.name = "User face mesh"
+            this.meshPoints.geometry.setAttribute('position', new BufferAttribute(this.latestLandmarks, 3))
+            this.scene.add(this.meshPoints)
+        } else {
+            if (this.trackingEnabled) {
+                this.meshPoints.geometry.setAttribute('position', new BufferAttribute(this.latestLandmarks, 3))
+                this.meshPoints.geometry.attributes["position"].needsUpdate = true;
+            }
+        }
+    }
+
     updateRemoteUserMedia = (remoteUserMedia: UserMedia) => {
         this.remoteUserMedias.set(remoteUserMedia.clientId, remoteUserMedia)
     }
@@ -200,23 +182,23 @@ export default class VideoRenderer {
         this.remoteUserMeshPoints.delete(clientId)
     }
 
+    private remoteUserMedias = new Map<string, UserMedia>()
     private remoteUserMeshPoints = new Map<string, Points>()
 
-    private addRemoteFaceToScene() {
-        this.remoteUserMedias.forEach((userMedia: UserMedia, key: string) => {
-            if (this.remoteUserMeshPoints.has(userMedia.clientId)) {
-                const remoteUserMeshPoints = this.remoteUserMeshPoints.get(userMedia.clientId)
+    private updateSceneWithRemoteFaces() {
+        this.remoteUserMedias.forEach((userMedia: UserMedia, clientId: string) => {
+            if (this.remoteUserMeshPoints.has(clientId)) {
+                const remoteUserMeshPoints = this.remoteUserMeshPoints.get(clientId)
                 remoteUserMeshPoints.geometry.setAttribute('position', new BufferAttribute(userMedia.normalizedLandmarks1D, 3))
                 remoteUserMeshPoints.geometry.attributes["position"].needsUpdate = true;
             } else {
                 const MESH_COLOR = 0x33FF71
-                let material = new PointsMaterial({color: MESH_COLOR, size: 2});
+                let material = new PointsMaterial({color: MESH_COLOR, size: 1.5});
                 const geometry = new BufferGeometry()
                 geometry.setAttribute('position', new BufferAttribute(userMedia.normalizedLandmarks1D, 3))
                 const remoteUserMeshPoints = new Points(geometry, material)
                 remoteUserMeshPoints.name = `${userMedia.clientId} face mesh`
                 this.remoteUserMeshPoints.set(userMedia.clientId, remoteUserMeshPoints)
-                this.addFaceMeshResources(geometry, material, remoteUserMeshPoints)
                 this.scene.add(remoteUserMeshPoints)
             }
         }, this)
@@ -227,7 +209,6 @@ export default class VideoRenderer {
         this.renderer.dispose()
         this.stopRender()
         this.holisticCalculator?.close()
-        this.removePreviousFaceMesh()
     }
 
     private trackingEnabled: boolean = true

@@ -1,5 +1,6 @@
 import React from 'react';
 import {Menu} from "@headlessui/react";
+import {FaEllipsisV} from "react-icons/fa";
 
 interface Props {
     toggleOriginalVideoFeed: (boolean) => void
@@ -8,7 +9,7 @@ interface Props {
 const VideoRoomOptions = ({toggleOriginalVideoFeed}: Props) => {
     return (
         <Menu>
-            <Menu.Button>Options</Menu.Button>
+            <Menu.Button><FaEllipsisV className={"ml-2 mr-2 rounded-full text-indigo-900"}/></Menu.Button>
             <Menu.Items>
                 <Menu.Item>
                     {({active}) => (

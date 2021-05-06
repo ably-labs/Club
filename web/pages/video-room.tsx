@@ -7,8 +7,9 @@ import CallStateDisplay from "../public/ts/CallStateDisplay";
 import EditUsernameModal from "../public/ts/EditUsernameModal";
 import {generateRandomUsername, pickRandomTailwindColor} from "../public/ts/name_utilities";
 import {BrowserView} from 'react-device-detect';
-import {FaEdit, FaPause, FaPhone, FaPlay} from "react-icons/fa";
+import {FaEdit, FaPause, FaPhone, FaPhoneSlash, FaPlay} from "react-icons/fa";
 import VideoRoomOptions from "../public/ts/ui/videoRoomOptions";
+import Layout from "../components/layout";
 
 export default function VideoRoom(): ReactElement {
     const [username, setUsername] = useState('')
@@ -21,8 +22,7 @@ export default function VideoRoom(): ReactElement {
     const videoRendererRef = useRef<VideoRenderer>(null);
     const messagingRef = useRef<Messaging>(null);
     const fpsCounterRef = useRef<HTMLDivElement>(null);
-    const [callButtonEnabled, setCallButtonEnabled] = useState(true);
-    const [hangUpButtonEnabled, setHangUpButtonEnabled] = useState(false);
+    const [callIsConnected, setCallButtonEnabled] = useState(true);
     const [color, setColor] = useState(pickRandomTailwindColor())
 
     const DEFAULT_ORIGINAL_VIDEO_WIDTH = 0
@@ -39,7 +39,6 @@ export default function VideoRoom(): ReactElement {
 
     useEffect(() => {
         setCallButtonEnabled(false)
-        setHangUpButtonEnabled(false)
         const username = generateRandomUsername()
         setUsername(username)
         messagingRef.current = new Messaging(username, setCallState);
@@ -59,20 +58,18 @@ export default function VideoRoom(): ReactElement {
 
     const joinCallHandler = async () => {
         setCallButtonEnabled(false);
-        setHangUpButtonEnabled(true);
-        videoRendererRef.current.scheduleFaceDataPublishing(1)
+        videoRendererRef.current.scheduleFaceDataPublishing(2)
         await messagingRef.current.joinLobbyPresence()
     };
 
     const hangUpHandler = async () => {
         setCallButtonEnabled(true);
         videoRendererRef.current.cancelFaceDataPublishing()
-        setHangUpButtonEnabled(false);
         await messagingRef.current.leaveLobbyPresense()
     };
 
     const toggleTracking = async () => {
-        await videoRendererRef.current.setTracking(!trackingEnabled)
+        await videoRendererRef.current.setLocalFaceTrackingTracking(!trackingEnabled)
         setTrackingEnabled(!trackingEnabled)
     }
 
@@ -105,69 +102,68 @@ export default function VideoRoom(): ReactElement {
         setEditUsernameModalEnabled(false)
     }
 
+    // TODO add text overlay to say "press the green button".
     return (
-        <div className='container align-middle flex flex-col mx-auto'>
-            <Head>
-                <title>Anonymous Video Calls</title>
-            </Head>
-            <EditUsernameModal show={editUsernameModalEnabled}
-                               handleSubmit={editUsernameHandler}
-                               handleClose={closeEditUsernameModalHandler}/>
-            <div className={"flex flex-col flex-grow"}>
+        <Layout>
+            <div className='container max-w-none'>
+                <Head>
+                    <title>Anonymous Video Calls</title>
+                </Head>
                 <BrowserView>
                     <div style={{position: "fixed", top: 0, right: 0}} ref={fpsCounterRef}/>
                 </BrowserView>
-                <div className={"flex justify-center"}>
-                    <p className={"text-gray-700 text-2xl"}>Hello
-                        👋,{" "}
-                    </p>
-                    <p className={`text-${color}-600 text-2xl font-bold mx-2`}>{(username && username.length > 0) ? username : "anonymous"}</p>
-                    <button className={`text-${color}-700 hover:text-${color}-400`} onClick={toggleEditUsernameModal}>
-                        <FaEdit size={20}/></button>
-                </div>
-                <video
-                    style={{
-                        transform: "scaleX(-1)",
-                        paddingLeft: 0,
-                        paddingRight: 0,
-                        marginLeft: "auto",
-                        marginRight: "auto"
-                    }}
-                    playsInline
-                    autoPlay
-                    loop
-                    width={originalVideoWidth}
-                    muted
-                    ref={videoRef}
-                />
-                <div ref={renderOutputRef}/>
-                <div className={"flex"}>
-                    <div className={"flex"}>
-                        <button
-                            aria-disabled={!callButtonEnabled}
-                            className={"bg-green-500 hover:bg-green-700 text-white mx-2 font-bold py-2 px-4 rounded disabled:bg-gray-500 disabled:cursor-not-allowed"}
-                            onClick={joinCallHandler} disabled={!callButtonEnabled}>
-                            Join <FaPhone/>
-                        </button>
+                <EditUsernameModal show={editUsernameModalEnabled}
+                                   handleSubmit={editUsernameHandler}
+                                   handleClose={closeEditUsernameModalHandler}/>
+                <div className={"flex-col align-middle"}>
+                    <div className={"flex justify-center my-2"}>
+                        <p className={"text-gray-700 text-2xl"}>Hey,{" "}</p>
+                        <p className={`text-${color}-600 text-2xl font-bold mx-2`}>{(username && username.length > 0) ? username : "anonymous"}</p>
+                        <button className={`text-${color}-700 hover:text-${color}-400`}
+                                onClick={toggleEditUsernameModal}>
+                            <FaEdit size={16}/></button>
                     </div>
-                    <button
-                        className={"bg-indigo-500 hover:bg-indigo-700 text-white mx-2 font-bold py-2 px-4 rounded disabled:bg-gray-500 disabled:cursor-not-allowed"}
-                        onClick={toggleTracking}>{trackingEnabled ? <FaPause/> : <FaPlay/>}
-                    </button>
-                    <button
-                        className={"bg-red-500 hover:bg-red-700 text-white mx-2 font-bold py-2 px-4 rounded disabled:bg-gray-500 disabled:cursor-not-allowed"}
-                        onClick={hangUpHandler} disabled={!hangUpButtonEnabled}>
-                        Hang up
-                    </button>
-                    <VideoRoomOptions toggleOriginalVideoFeed={toggleOriginalVideoFeed}/>
+                    <div className={"flex justify-center rounded-md overflow-hidden"}>
+                        <video
+                            style={{
+                                transform: "scaleX(-1)",
+                                borderRadius: "16px",
+                            }}
+                            playsInline
+                            autoPlay
+                            loop
+                            width={originalVideoWidth}
+                            muted
+                            ref={videoRef}
+                        />
+                    </div>
+
+                    <div ref={renderOutputRef} className={"flex justify-center"}/>
+                    <div className={"flex justify-center my-2"}>
+                        <div className={"inline-flex p-4 bg-indigo-100 rounded-full"}>
+                            {(callIsConnected) ?
+                                <button
+                                    aria-disabled={!callIsConnected}
+                                    className={"bg-green-500 hover:bg-green-700 text-white mx-2 font-bold py-2 px-4 rounded-full disabled:bg-gray-500 disabled:cursor-not-allowed"}
+                                    onClick={joinCallHandler} disabled={!callIsConnected}>
+                                    <FaPhone/>
+                                </button> :
+                                <button
+                                    className={"bg-red-500 hover:bg-red-700 text-white mx-2 font-bold py-4 px-4 rounded-full disabled:bg-gray-500 disabled:cursor-not-allowed"}
+                                    onClick={hangUpHandler} disabled={callIsConnected}>
+                                    <FaPhoneSlash/>
+                                </button>
+                            }
+                            <button
+                                className={"bg-indigo-500 hover:bg-indigo-700 text-white mx-2 font-bold py-4 px-4 rounded-full disabled:bg-gray-500 disabled:cursor-not-allowed"}
+                                onClick={toggleTracking}>{trackingEnabled ? <FaPause/> : <FaPlay/>}
+                            </button>
+                            <VideoRoomOptions toggleOriginalVideoFeed={toggleOriginalVideoFeed}/>
+                        </div>
+                    </div>
+                    {CallStateDisplay({callState})}
                 </div>
-                {CallStateDisplay({callState})}
             </div>
-            <div className={"my-4 hover:underline text-blue-400"}>
-                <Link href='/'>
-                    <a>Back to homepage</a>
-                </Link>
-            </div>
-        </div>
+        </Layout>
     );
 }

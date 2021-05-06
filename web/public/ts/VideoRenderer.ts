@@ -2,7 +2,6 @@ import {
     BufferAttribute,
     BufferGeometry,
     Camera,
-    Object3D,
     OrthographicCamera,
     Points,
     PointsMaterial,
@@ -13,6 +12,8 @@ import MediapipeHolisticCalculator from "./MediapipeHolisticCalculator";
 import Stats from 'stats.js'
 import Messaging from "./Messaging";
 import UserMedia from "./models/UserMedia";
+import {Direction} from "./models/Direction";
+import {Results} from "@mediapipe/holistic";
 
 /**
  * Renders video
@@ -25,7 +26,6 @@ export default class VideoRenderer {
     private messaging: Messaging
     renderId: number | null = null
     private isRunning: Boolean
-    private readonly viewSize: number;
     private readonly aspectRatio: number;
     private fpsOutput: HTMLParagraphElement;
     private holisticCalculator: MediapipeHolisticCalculator;
@@ -35,22 +35,26 @@ export default class VideoRenderer {
     private stats: Stats;
     private latestLandmarks: Float32Array | null = null;
     private periodicFaceData: number;
+    private readonly cameraWidth: number;
+    private readonly cameraHeight: number;
 
     constructor(videoElement: HTMLVideoElement,
                 outputElement: HTMLDivElement,
                 fpsOutput: HTMLDivElement,
                 messaging: Messaging,
-                viewSize = 900,
                 width = 680,
+                cameraWidth = 200,
+                aspectRatio = 680 / 480,
     ) {
         this.videoElement = videoElement;
         outputElement.innerHTML = "";
         this.fpsOutput = fpsOutput;
         this.messaging = messaging;
-        this.viewSize = viewSize;
-        this.aspectRatio = 680 / 480
+        this.aspectRatio = aspectRatio
         this.width = width
-        this.height = this.width / this.aspectRatio
+        this.height = width / this.aspectRatio
+        this.cameraWidth = cameraWidth
+        this.cameraHeight = cameraWidth / this.aspectRatio
 
         this.stats = new Stats()
         this.stats.dom.style.cssText = "position:relative;top:0;left:0;cursor:pointer;opacity:0.9;z-index:10000"
@@ -58,14 +62,16 @@ export default class VideoRenderer {
         this.fpsOutput.appendChild(this.stats.dom)
 
         this.renderer = new WebGLRenderer({alpha: true});
-        this.renderer.setClearColor(0xffffff, 1)
+        this.renderer.setClearColor(0xEEF2FF, 1)
+        // this.renderer.setClearColor(0xffffff, 1)
         this.renderer.setSize(this.width, this.height);
+        this.renderer.domElement.style.borderRadius = "16px"
         outputElement.appendChild(this.renderer.domElement)
         this.scene = new Scene();
         this.camera = new OrthographicCamera(
             0,
-            this.aspectRatio * viewSize / 2,
-            viewSize / 2,
+            this.aspectRatio * 450,
+            450,
             0,
             -1000,
             1000);
@@ -73,7 +79,7 @@ export default class VideoRenderer {
         // cameraControls.target.set()
         // this.faceMesh = new MediaPipeFaceMeshCalculator(this.updateFaceMesh, this.aspectRatio, viewSize)
 
-        const scaleFactor = 0.2
+        const scaleFactor = 1
         this.holisticCalculator = new MediapipeHolisticCalculator(
             this.updateScene,
             this.width * scaleFactor,
@@ -86,6 +92,8 @@ export default class VideoRenderer {
         } else {
             this.start()
         }
+
+        this.setupKeyControls()
     }
 
     scheduleFaceDataPublishing(framesPerSecond: number = 1) {
@@ -112,9 +120,6 @@ export default class VideoRenderer {
      * Call this to start the rendering
      */
     step = async () => {
-        if (!this.videoElement.srcObject) {
-            console.log("Skipping renderHTML Video element, since the videoElement doesn't have the camera feed yet.")
-        }
         if (this.isRunning) {
             this.isRunning = true
             await this.holisticCalculator.send(this.videoElement) //  continues in [MediaPipeFaceMeshCalculator.imageResultHandler]
@@ -134,12 +139,12 @@ export default class VideoRenderer {
 
     /**
      * Update the face mesh state (in the three.js scene) in this class, which is used in the render loop.
-     * @param normalizedLandmarks1D All face landmarks for 1 face in a 1-dimensional list: x1, y1, z1, x2, y2, z2.
+     * @param results Mediapipe holistic results data type, containing hands, body and face coordinates.
      */
-    updateScene = (normalizedLandmarks1D: Float32Array) => {
-        this.latestLandmarks = normalizedLandmarks1D
-        this.updateSceneWithLocalFace()
-        this.updateSceneWithRemoteFaces()
+    updateScene = (results: Results) => {
+        this.latestLandmarks = this.transform(results)
+        this.updateSceneUsingLocalFaceState()
+        this.updateSceneUsingRemoteFacesState()
         this.renderer.render(this.scene, this.camera);
 
         if (this.renderId) window.cancelAnimationFrame(this.renderId)
@@ -151,7 +156,74 @@ export default class VideoRenderer {
         }
     };
 
-    private updateSceneWithLocalFace() {
+    // TODO send over positions to other users separate from face data.
+    // TODO add guide to use arrow keys or WASD
+    /**
+     * @returns Float32Array All face landmarks for 1 face in a 1-dimensional list: x1, y1, z1, x2, y2, z2.
+     * @private
+     */
+    private normalizedLandmarks1D: Float32Array;
+
+    private transform(results: Results): Float32Array {
+        const poseLandmarks = results.poseLandmarks
+        const normalizedLandmarks = results.faceLandmarks
+        if (normalizedLandmarks) {
+            if (!this.normalizedLandmarks1D) {
+                this.normalizedLandmarks1D = new Float32Array(normalizedLandmarks.length * 3 + 6);
+            }
+            // Convert allCoordinates into 1-d array.
+            for (let i = 0; i < normalizedLandmarks.length * 3; i++) {
+                const meshCoordinateNumber = Math.floor(i / 3)
+                const xYZIndex = i % 3
+                if (xYZIndex === 0) {
+                    this.normalizedLandmarks1D[i] = (normalizedLandmarks[meshCoordinateNumber].x) * this.cameraWidth + this.offset.right
+                } else if (xYZIndex === 1) {
+                    this.normalizedLandmarks1D[i] = -(normalizedLandmarks[meshCoordinateNumber].y) * this.cameraHeight + (this.cameraHeight) + this.offset.up
+                } else {
+                    this.normalizedLandmarks1D[i] = (normalizedLandmarks[meshCoordinateNumber].z) * this.cameraWidth
+                }
+            }
+
+            // 2 shoulders
+            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 6] = poseLandmarks[12].x * this.cameraWidth
+            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 5] = -poseLandmarks[12].y * this.cameraHeight + (this.cameraHeight)
+            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 4] = poseLandmarks[12].z
+            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 3] = poseLandmarks[11].x * this.cameraWidth
+            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 2] = -poseLandmarks[11].y * this.cameraHeight + (this.cameraHeight)
+            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 1] = poseLandmarks[11].z
+        } else {
+            console.warn("Face not found...")
+        }
+        return this.normalizedLandmarks1D
+    }
+
+    /**
+     * Controls for moving users face on 2D environment
+     */
+    private MOVE_QUANTITY = 10
+    private offset = {
+        up: 0,
+        right: 0,
+    }
+    // TODO handle edge cases
+    moveFace = (direction: Direction) => {
+        switch (direction) {
+            case Direction.Left:
+                this.offset.right -= this.MOVE_QUANTITY
+                break
+            case Direction.Down:
+                this.offset.up -= this.MOVE_QUANTITY
+                break
+            case Direction.Right:
+                this.offset.right += this.MOVE_QUANTITY
+                break
+            case Direction.Up:
+                this.offset.up += this.MOVE_QUANTITY
+                break
+        }
+    }
+
+    private updateSceneUsingLocalFaceState() {
         if (!this.latestLandmarks) {
             return
         }
@@ -164,7 +236,7 @@ export default class VideoRenderer {
             this.meshPoints.geometry.setAttribute('position', new BufferAttribute(this.latestLandmarks, 3))
             this.scene.add(this.meshPoints)
         } else {
-            if (this.trackingEnabled) {
+            if (this.localFaceTrackingEnabled) {
                 this.meshPoints.geometry.setAttribute('position', new BufferAttribute(this.latestLandmarks, 3))
                 this.meshPoints.geometry.attributes["position"].needsUpdate = true;
             }
@@ -185,14 +257,14 @@ export default class VideoRenderer {
     private remoteUserMedias = new Map<string, UserMedia>()
     private remoteUserMeshPoints = new Map<string, Points>()
 
-    private updateSceneWithRemoteFaces() {
+    private updateSceneUsingRemoteFacesState() {
         this.remoteUserMedias.forEach((userMedia: UserMedia, clientId: string) => {
             if (this.remoteUserMeshPoints.has(clientId)) {
                 const remoteUserMeshPoints = this.remoteUserMeshPoints.get(clientId)
                 remoteUserMeshPoints.geometry.setAttribute('position', new BufferAttribute(userMedia.normalizedLandmarks1D, 3))
                 remoteUserMeshPoints.geometry.attributes["position"].needsUpdate = true;
             } else {
-                const MESH_COLOR = 0x33FF71
+                const MESH_COLOR = 0x3B82F6
                 let material = new PointsMaterial({color: MESH_COLOR, size: 1.5});
                 const geometry = new BufferGeometry()
                 geometry.setAttribute('position', new BufferAttribute(userMedia.normalizedLandmarks1D, 3))
@@ -204,6 +276,16 @@ export default class VideoRenderer {
         }, this)
     }
 
+    /**
+     * Face tracking can be paused and re-enabled using this.
+     * @param enabled
+     */
+    async setLocalFaceTrackingTracking(enabled: boolean) {
+        this.localFaceTrackingEnabled = enabled
+    }
+
+    private localFaceTrackingEnabled: boolean = true
+
     dispose() {
         console.log("Disposing VideoRenderer now...")
         this.renderer.dispose()
@@ -211,9 +293,30 @@ export default class VideoRenderer {
         this.holisticCalculator?.close()
     }
 
-    private trackingEnabled: boolean = true
-
-    async setTracking(enabled: boolean) {
-        this.trackingEnabled = enabled
+    /**
+     * Setting up key controls for the user, such as moving the character
+     * @private
+     */
+    private setupKeyControls() {
+        document.onkeydown = (keyboardEvent) => {
+            switch (keyboardEvent.key) {
+                case "a":
+                case "ArrowLeft":
+                    this.moveFace(Direction.Left)
+                    break;
+                case "s":
+                case "ArrowDown":
+                    this.moveFace(Direction.Down)
+                    break;
+                case "d":
+                case "ArrowRight":
+                    this.moveFace(Direction.Right)
+                    break;
+                case "w":
+                case "ArrowUp":
+                    this.moveFace(Direction.Up)
+                    break;
+            }
+        }
     }
 }

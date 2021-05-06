@@ -13,12 +13,11 @@ export default class MediapipeHolisticCalculator {
      * @private
      */
     private readonly holistic: Holistic
-    private readonly resultsCallback: (normalizedLandmarks1D: Float32Array) => void;
+    private readonly resultsCallback: (results: Results) => void;
     private readonly outputWidth: number;
     private readonly outputHeight: number;
-    private normalizedLandmarks1D: Float32Array;
 
-    constructor(resultsCallback: (normalizedLandmarks1D: Float32Array) => void,
+    constructor(resultsCallback: (results: Results) => void,
                 outputWidth: number,
                 outputHeight: number) {
         this.resultsCallback = resultsCallback
@@ -36,7 +35,7 @@ export default class MediapipeHolisticCalculator {
             minDetectionConfidence: 0.5,
             minTrackingConfidence: 0.5
         })
-        this.holistic.onResults(this.imageResultHandler)
+        this.holistic.onResults(this.resultsCallback)
     }
 
     /**
@@ -45,44 +44,6 @@ export default class MediapipeHolisticCalculator {
      */
     send = async (videoElement: HTMLVideoElement): Promise<void> => {
         return await this.holistic.send({image: videoElement})
-    }
-
-    /**
-     * Handles results passed by MediaPipe FaceMesh library, and finally calls the callback function specified in the constructor.
-     * @param results
-     */
-    imageResultHandler = (results: Results) => {
-        const poseLandmarks = results.poseLandmarks
-        const normalizedLandmarks = results.faceLandmarks
-        if (normalizedLandmarks) {
-            if (!this.normalizedLandmarks1D) {
-                this.normalizedLandmarks1D = new Float32Array(normalizedLandmarks.length * 3 + 6);
-            }
-            // Convert allCoordinates into 1-d array.
-            for (let i = 0; i < normalizedLandmarks.length * 3; i++) {
-                const meshCoordinateNumber = Math.floor(i / 3)
-                const xYZIndex = i % 3
-                if (xYZIndex === 0) {
-                    this.normalizedLandmarks1D[i] = (normalizedLandmarks[meshCoordinateNumber].x) * this.outputWidth
-                } else if (xYZIndex === 1) {
-                    this.normalizedLandmarks1D[i] = -(normalizedLandmarks[meshCoordinateNumber].y) * this.outputHeight + (this.outputHeight)
-                } else {
-                    this.normalizedLandmarks1D[i] = (normalizedLandmarks[meshCoordinateNumber].z) * this.outputWidth
-                }
-            }
-
-            // 2 shoulders
-            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 6] = poseLandmarks[12].x * this.outputWidth
-            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 5] = -poseLandmarks[12].y * this.outputHeight + (this.outputHeight)
-            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 4] = poseLandmarks[12].z
-            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 3] = poseLandmarks[11].x * this.outputWidth
-            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 2] = -poseLandmarks[11].y * this.outputHeight + (this.outputHeight)
-            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 1] = poseLandmarks[11].z
-        } else {
-            console.warn("Face not found...")
-        }
-
-        this.resultsCallback(this.normalizedLandmarks1D);
     }
 
     close = () => {

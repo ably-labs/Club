@@ -48,6 +48,5 @@ export default function EditUsernameModal({handleSubmit, show, handleClose}: Pro
                 </button>
             </div>
         </Dialog>
-    )
-        ;
+    );
 }

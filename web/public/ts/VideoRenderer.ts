@@ -297,26 +297,31 @@ export default class VideoRenderer {
      * Setting up key controls for the user, such as moving the character
      * @private
      */
+    private keysPressed = {};
     private setupKeyControls() {
-        document.onkeydown = (keyboardEvent) => {
-            switch (keyboardEvent.key) {
-                case "a":
-                case "ArrowLeft":
-                    this.moveFace(Direction.Left)
-                    break;
-                case "s":
-                case "ArrowDown":
-                    this.moveFace(Direction.Down)
-                    break;
-                case "d":
-                case "ArrowRight":
-                    this.moveFace(Direction.Right)
-                    break;
-                case "w":
-                case "ArrowUp":
-                    this.moveFace(Direction.Up)
-                    break;
+
+        document.addEventListener('keyup', (event) => {
+            delete this.keysPressed[event.key];
+        });
+
+        document.addEventListener('keydown', (event) => {
+            this.keysPressed[event.key] = true;
+
+            if (this.keysPressed["ArrowLeft"] || this.keysPressed["a"]) {
+                this.moveFace(Direction.Left)
             }
-        }
+
+            if (this.keysPressed["ArrowDown"] || this.keysPressed["s"]) {
+                this.moveFace(Direction.Down)
+            }
+
+            if (this.keysPressed["ArrowRight"] || this.keysPressed["d"]) {
+                this.moveFace(Direction.Right)
+            }
+
+            if (this.keysPressed["ArrowUp"] || this.keysPressed["w"]) {
+                this.moveFace(Direction.Up)
+            }
+        });
     }
 }

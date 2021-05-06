@@ -1,6 +1,7 @@
 import Ably, {Realtime} from 'ably/promises'
 import {Types} from "ably";
-import UserMedia from "./models/UserMedia";
+import UserMedia, {FaceMessage} from "./models/UserMedia";
+import msgpack5 from "msgpack5";
 
 export type ConnectionState = "connected" | "disconnected"
 
@@ -18,6 +19,7 @@ export default class Messaging {
     private username: string;
     private updateRemoteFaceMeshs: (remoteUserMedia: UserMedia) => void
     private removeRemoteUser: (clientId: string) => void
+    private messagePack = msgpack5()
 
     constructor(username: string,
                 setCallState: (value: (((prevState: CallState) => CallState) | CallState)) => void,
@@ -80,10 +82,13 @@ export default class Messaging {
 
             this.channel.subscribe("face", (message: Types.Message) => {
                 if (message.clientId !== this.username) {
-                    const faceArray = new Float32Array(message.data);
+                    const array = message.data
+                    const faceMessage = this.messagePack.decode(array) as FaceMessage
+                    const faceArray = new Float32Array(Object.values(faceMessage.face));
                     this.updateRemoteFaceMeshs({
                         clientId: message.clientId,
-                        normalizedLandmarks1D: faceArray
+                        normalizedLandmarks1D: faceArray,
+                        faceMeshColor: faceMessage.faceMeshColor
                     })
                 }
             })
@@ -122,8 +127,12 @@ export default class Messaging {
         })
     }
 
-    publishToLobby = async (face: Float32Array) => {
-        await this.channel.publish("face", face)
+    publishToLobby = async (face: Float32Array, faceMeshColor: string) => {
+        const faceMessage: FaceMessage = {
+            face: face,
+            faceMeshColor: faceMeshColor
+        }
+        await this.channel.publish("face", this.messagePack.encode(faceMessage))
     }
 
     leaveLobbyPresense = async () => {

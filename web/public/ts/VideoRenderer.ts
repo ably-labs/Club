@@ -1,7 +1,7 @@
 import {
     BufferAttribute,
     BufferGeometry,
-    Camera,
+    Camera, Color,
     OrthographicCamera,
     Points,
     PointsMaterial,
@@ -14,6 +14,7 @@ import Messaging from "./Messaging";
 import UserMedia from "./models/UserMedia";
 import {Direction} from "./models/Direction";
 import {Results} from "@mediapipe/holistic";
+import {pickRandomTailwindColorHex} from "./name_utilities";
 
 /**
  * Renders video
@@ -37,6 +38,7 @@ export default class VideoRenderer {
     private periodicFaceData: number;
     private readonly cameraWidth: number;
     private readonly cameraHeight: number;
+    private faceMeshColor: string = pickRandomTailwindColorHex();
 
     constructor(videoElement: HTMLVideoElement,
                 outputElement: HTMLDivElement,
@@ -96,12 +98,16 @@ export default class VideoRenderer {
         this.setupKeyControls()
     }
 
+    updateUsername = (username: string) => {
+        console.error("TODO: render the username")
+    }
+
     scheduleFaceDataPublishing(framesPerSecond: number = 1) {
         window.clearInterval(this.periodicFaceData)
         const intervalInMilliseconds = 1000 / framesPerSecond
         this.periodicFaceData = window.setInterval(async () => {
             if (this.latestLandmarks) {
-                await this.messaging.publishToLobby(this.latestLandmarks);
+                await this.messaging.publishToLobby(this.latestLandmarks, this.faceMeshColor);
             }
         }, intervalInMilliseconds)
     }
@@ -156,7 +162,6 @@ export default class VideoRenderer {
         }
     };
 
-    // TODO send over positions to other users separate from face data.
     // TODO add guide to use arrow keys or WASD
     /**
      * @returns Float32Array All face landmarks for 1 face in a 1-dimensional list: x1, y1, z1, x2, y2, z2.
@@ -185,11 +190,11 @@ export default class VideoRenderer {
             }
 
             // 2 shoulders
-            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 6] = poseLandmarks[12].x * this.cameraWidth
-            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 5] = -poseLandmarks[12].y * this.cameraHeight + (this.cameraHeight)
+            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 6] = poseLandmarks[12].x * this.cameraWidth + this.offset.right
+            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 5] = -poseLandmarks[12].y * this.cameraHeight + (this.cameraHeight) + this.offset.up
             this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 4] = poseLandmarks[12].z
-            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 3] = poseLandmarks[11].x * this.cameraWidth
-            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 2] = -poseLandmarks[11].y * this.cameraHeight + (this.cameraHeight)
+            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 3] = poseLandmarks[11].x * this.cameraWidth + this.offset.right
+            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 2] = -poseLandmarks[11].y * this.cameraHeight + (this.cameraHeight) + this.offset.up
             this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 1] = poseLandmarks[11].z
         } else {
             console.warn("Face not found...")
@@ -202,10 +207,10 @@ export default class VideoRenderer {
      */
     private MOVE_QUANTITY = 10
     private offset = {
-        up: 0,
-        right: 0,
+        up: 100,
+        right: 50,
     }
-    // TODO handle edge cases
+    // TODO handle physical edge cases
     moveFace = (direction: Direction) => {
         switch (direction) {
             case Direction.Left:
@@ -228,8 +233,7 @@ export default class VideoRenderer {
             return
         }
         if (!this.meshPoints) {
-            const MESH_COLOR = 0x0
-            let material = new PointsMaterial({color: MESH_COLOR, size: 1.5});
+            let material = new PointsMaterial({color: this.faceMeshColor, size: 1.5});
             const geometry = new BufferGeometry()
             this.meshPoints = new Points(geometry, material)
             this.meshPoints.name = "User face mesh"
@@ -241,6 +245,12 @@ export default class VideoRenderer {
                 this.meshPoints.geometry.attributes["position"].needsUpdate = true;
             }
         }
+    }
+
+    changeLocalFaceMeshColor = (color: string) => {
+        this.faceMeshColor = color
+        this.meshPoints.material.color = new Color(color)
+        this.meshPoints.material.needsUpdate = true
     }
 
     updateRemoteUserMedia = (remoteUserMedia: UserMedia) => {
@@ -264,8 +274,8 @@ export default class VideoRenderer {
                 remoteUserMeshPoints.geometry.setAttribute('position', new BufferAttribute(userMedia.normalizedLandmarks1D, 3))
                 remoteUserMeshPoints.geometry.attributes["position"].needsUpdate = true;
             } else {
-                const MESH_COLOR = 0x3B82F6
-                let material = new PointsMaterial({color: MESH_COLOR, size: 1.5});
+                const meshColor = this.remoteUserMedias.get(clientId).faceMeshColor
+                let material = new PointsMaterial({color: meshColor, size: 1.5});
                 const geometry = new BufferGeometry()
                 geometry.setAttribute('position', new BufferAttribute(userMedia.normalizedLandmarks1D, 3))
                 const remoteUserMeshPoints = new Points(geometry, material)

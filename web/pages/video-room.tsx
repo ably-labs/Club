@@ -93,6 +93,7 @@ export default function VideoRoom(): ReactElement {
             return
         }
         setUsername(username)
+        videoRendererRef.current.updateUsername(username)
         setColor(pickRandomTailwindColor())
         await messagingRef.current.setUsername(username)
         // TODO save to local storage, and re-read on startup everytime.
@@ -100,6 +101,10 @@ export default function VideoRoom(): ReactElement {
 
     const closeEditUsernameModalHandler = () => {
         setEditUsernameModalEnabled(false)
+    }
+
+    const changeFaceMeshColor = (newColor: string) => {
+        videoRendererRef.current.changeLocalFaceMeshColor(newColor)
     }
 
     // TODO add text overlay to say "press the green button".
@@ -158,7 +163,7 @@ export default function VideoRoom(): ReactElement {
                                 className={"bg-indigo-500 hover:bg-indigo-700 text-white mx-2 font-bold py-4 px-4 rounded-full disabled:bg-gray-500 disabled:cursor-not-allowed"}
                                 onClick={toggleTracking}>{trackingEnabled ? <FaPause/> : <FaPlay/>}
                             </button>
-                            <VideoRoomOptions toggleOriginalVideoFeed={toggleOriginalVideoFeed}/>
+                            <VideoRoomOptions toggleOriginalVideoFeed={toggleOriginalVideoFeed} changeFaceMeshColor={changeFaceMeshColor}/>
                         </div>
                     </div>
                     {CallStateDisplay({callState})}

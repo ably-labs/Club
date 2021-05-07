@@ -5,4 +5,4 @@ struct UserState {
     faceMeshColor:string;
 }
 
-root_type UserState
+root_type UserState;

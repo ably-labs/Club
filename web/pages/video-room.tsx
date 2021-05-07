@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import React, {ReactElement, useEffect, useRef, useState} from 'react';
 import Head from 'next/head';
 import VideoRenderer from "../public/ts/VideoRenderer";
@@ -58,7 +57,7 @@ export default function VideoRoom(): ReactElement {
 
     const joinCallHandler = async () => {
         setCallButtonEnabled(false);
-        videoRendererRef.current.scheduleFaceDataPublishing(2)
+        videoRendererRef.current.scheduleFaceDataPublishing()
         await messagingRef.current.joinLobbyPresence()
     };
 

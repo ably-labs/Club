@@ -9,11 +9,9 @@
   },
   "dependencies": {
     "@headlessui/react": "^1.1.1",
-    "@mediapipe/holistic": "^0.3.1620080860",
-    "@types/msgpack5": "^3.4.1",
-    "@types/stats.js": "^0.17.0",
+    "@mediapipe/holistic": "^0.3.1620345318",
     "ably": "^1.2.9",
-    "msgpack5": "^5.3.2",
+    "flatbuffers": "^1.12.0",
     "next": "^10.0.0",
     "react": "17.0.1",
     "react-device-detect": "^1.17.0",
@@ -26,8 +24,10 @@
     "webrtc-adapter": "^7.7.1"
   },
   "devDependencies": {
+    "@types/flatbuffers": "^1.10.0",
     "@types/node": "^14.14.41",
     "@types/react": "^17.0.3",
+    "@types/stats.js": "^0.17.0",
     "@types/three": "^0.127.1",
     "autoprefixer": "^10.2.5",
     "babel-plugin-styled-components": "^1.12.0",

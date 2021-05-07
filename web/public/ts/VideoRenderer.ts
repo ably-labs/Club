@@ -17,7 +17,9 @@ import {Results} from "@mediapipe/holistic";
 import {pickRandomTailwindColorHex} from "./name_utilities";
 
 /**
- * Renders video
+ * Renders video to a three.js renderer periodically based on its internal state.
+ * Update this state to change the render output for the next frame.
+ * There are multiple types of state, such as local user's face mesh, remote user's data, and perhaps more to come (objects).
  */
 export default class VideoRenderer {
     videoElement: HTMLVideoElement
@@ -39,6 +41,7 @@ export default class VideoRenderer {
     private readonly cameraWidth: number;
     private readonly cameraHeight: number;
     private faceMeshColor: string = pickRandomTailwindColorHex();
+    private uploadFramesPerSecond: number;
 
     constructor(videoElement: HTMLVideoElement,
                 outputElement: HTMLDivElement,
@@ -47,6 +50,7 @@ export default class VideoRenderer {
                 width = 680,
                 cameraWidth = 200,
                 aspectRatio = 680 / 480,
+                uploadFramesPerSecond = 2
     ) {
         this.videoElement = videoElement;
         outputElement.innerHTML = "";
@@ -57,6 +61,7 @@ export default class VideoRenderer {
         this.height = width / this.aspectRatio
         this.cameraWidth = cameraWidth
         this.cameraHeight = cameraWidth / this.aspectRatio
+        this.uploadFramesPerSecond = uploadFramesPerSecond
 
         this.stats = new Stats()
         this.stats.dom.style.cssText = "position:relative;top:0;left:0;cursor:pointer;opacity:0.9;z-index:10000"
@@ -65,7 +70,6 @@ export default class VideoRenderer {
 
         this.renderer = new WebGLRenderer({alpha: true});
         this.renderer.setClearColor(0xEEF2FF, 1)
-        // this.renderer.setClearColor(0xffffff, 1)
         this.renderer.setSize(this.width, this.height);
         this.renderer.domElement.style.borderRadius = "16px"
         outputElement.appendChild(this.renderer.domElement)
@@ -77,9 +81,6 @@ export default class VideoRenderer {
             0,
             -1000,
             1000);
-        // const cameraControls = new OrbitControls(this.camera, this.renderer.domElement)
-        // cameraControls.target.set()
-        // this.faceMesh = new MediaPipeFaceMeshCalculator(this.updateFaceMesh, this.aspectRatio, viewSize)
 
         const scaleFactor = 1
         this.holisticCalculator = new MediapipeHolisticCalculator(
@@ -102,9 +103,9 @@ export default class VideoRenderer {
         console.error("TODO: render the username")
     }
 
-    scheduleFaceDataPublishing(framesPerSecond: number = 1) {
+    scheduleFaceDataPublishing() {
         window.clearInterval(this.periodicFaceData)
-        const intervalInMilliseconds = 1000 / framesPerSecond
+        const intervalInMilliseconds = 1000 / this.uploadFramesPerSecond
         this.periodicFaceData = window.setInterval(async () => {
             if (this.latestLandmarks) {
                 await this.messaging.publishToLobby(this.latestLandmarks, this.faceMeshColor);
@@ -292,22 +293,28 @@ export default class VideoRenderer {
      */
     async setLocalFaceTrackingTracking(enabled: boolean) {
         this.localFaceTrackingEnabled = enabled
+        if (enabled) {
+            this.scheduleFaceDataPublishing()
+        } else {
+            this.cancelFaceDataPublishing()
+        }
     }
 
     private localFaceTrackingEnabled: boolean = true
 
     dispose() {
-        console.log("Disposing VideoRenderer now...")
         this.renderer.dispose()
         this.stopRender()
         this.holisticCalculator?.close()
     }
 
     /**
-     * Setting up key controls for the user, such as moving the character
-     * @private
+     * Put all your controls in here to keep them tidy.
+     *
+     * We keep track of keys that are pressed down in a state (this.keysPressed),
+     * so that we know when multiple keys are pressed at the same time and can support holding
+     * e.g. A + W to go up-and-to-the-left/ north-west.
      */
-    private keysPressed = {};
     private setupKeyControls() {
 
         document.addEventListener('keyup', (event) => {
@@ -334,4 +341,10 @@ export default class VideoRenderer {
             }
         });
     }
+
+    /**
+     * Setting up key controls for the user, such as moving the character
+     * @private
+     */
+    private keysPressed = {};
 }

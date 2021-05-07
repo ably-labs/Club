@@ -1,7 +1,6 @@
 import Ably, {Realtime} from 'ably/promises'
 import {Types} from "ably";
-import UserMedia, {FaceMessage} from "./models/UserMedia";
-import msgpack5 from "msgpack5";
+import UserMedia from "./models/UserMedia";
 
 export type ConnectionState = "connected" | "disconnected"
 
@@ -19,7 +18,6 @@ export default class Messaging {
     private username: string;
     private updateRemoteFaceMeshs: (remoteUserMedia: UserMedia) => void
     private removeRemoteUser: (clientId: string) => void
-    private messagePack = msgpack5()
 
     constructor(username: string,
                 setCallState: (value: (((prevState: CallState) => CallState) | CallState)) => void,
@@ -82,13 +80,16 @@ export default class Messaging {
 
             this.channel.subscribe("face", (message: Types.Message) => {
                 if (message.clientId !== this.username) {
-                    const array = message.data
-                    const faceMessage = this.messagePack.decode(array) as FaceMessage
-                    const faceArray = new Float32Array(Object.values(faceMessage.face));
+                    // TODO measure the received size
+                    const faceMessage = FaceMessageProto.deserializeBinary(message.data)
+                    const coordinates = faceMessage.getFaceMeshCoordinates() as Uint8Array
+                    const int16Array = new Int16Array((new DataView(coordinates.buffer)).buffer)
+                    const coordinatesFloat = new Float32Array(int16Array)
+                    const faceMeshColor = faceMessage.getFaceMeshColor()
                     this.updateRemoteFaceMeshs({
                         clientId: message.clientId,
-                        normalizedLandmarks1D: faceArray,
-                        faceMeshColor: faceMessage.faceMeshColor
+                        normalizedLandmarks1D: coordinatesFloat,
+                        faceMeshColor: faceMeshColor
                     })
                 }
             })
@@ -128,15 +129,36 @@ export default class Messaging {
     }
 
     publishToLobby = async (face: Float32Array, faceMeshColor: string) => {
-        const faceMessage: FaceMessage = {
-            face: face,
-            faceMeshColor: faceMeshColor
-        }
-        await this.channel.publish("face", this.messagePack.encode(faceMessage))
+    // TODO reduce vector precision.
+        // TODO use flatbuffers
+        // TODO use custom serialization
+        const message = new FaceMessageProto()
+        // cannot just cast it, because negative numbers because huge.
+        const int16Array = new Int16Array(face)
+        const dataView = new DataView(int16Array.buffer)
+        const uint8 = new Uint8Array(dataView.buffer)
+        message.setFaceMeshCoordinates(uint8)
+        // message.setFaceMeshColor(faceMeshColor)
+        const bytes = message.serializeBinary()
+
+        const deserializedMessage = FaceMessageProto.deserializeBinary(bytes)
+        const uint8before = message.getFaceMeshCoordinates() as Uint8Array
+        const int16Before = new Int16Array(new DataView(uint8before.buffer).buffer)
+        const uint8after = deserializedMessage.getFaceMeshCoordinates() as Uint8Array
+        const int16After = new Int16Array(new DataView(uint8after.buffer).buffer)
+        console.log({int16Before, int16After})
+        // const dataViewAgain = new DataView(coordinates.buffer)
+        // const int16ArrayAgain = new Int16Array(dataView.buffer)
+        // const coordinatesFloat = new Float32Array(int16ArrayAgain)
+
+
+        const lengthInBytes = bytes.length
+        // TODO measure/ save the received size
+        await this.channel.publish("face", bytes)
     }
 
     leaveLobbyPresense = async () => {
-        await this.channel.presence.leave()
+        await this.channel.presence.leave()h
         this.connectedClientIds = this.connectedClientIds.filter((value) => value !== this.username)
         this.setCallState({
             connection: "connected",
@@ -156,6 +178,10 @@ export default class Messaging {
         this.ablyClient.close()
     }
 
+    /**
+     *
+     * @param removeRemoteUser
+     */
     setRemoveRemoteUserHandler(removeRemoteUser: (clientId: string) => void) {
         this.removeRemoteUser = removeRemoteUser
     }

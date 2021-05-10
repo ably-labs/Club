@@ -1,8 +1,9 @@
-namespace Club2D;
+namespace club2d;
 
-struct UserState {
-    faceMesh:[float32];
-    faceMeshColor:string;
+table UserState {
+    face_mesh:[byte];
+    face_mesh_color:[byte];
+    face_mesh_size: float32;
 }
 
 root_type UserState;

@@ -1,11 +1,7 @@
 
 export default interface UserMedia {
-    normalizedLandmarks1D: Float32Array
+    normalizedLandmarks1D: Uint16Array
     clientId: string,
-    faceMeshColor: string
-}
-
-export interface FaceMessage {
-    face: Float32Array
-    faceMeshColor: string
+    faceMeshColor: string,
+    meshPointSize: number
 }

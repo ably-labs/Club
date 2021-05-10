@@ -1,6 +1,7 @@
 import Ably, {Realtime} from 'ably/promises'
 import {Types} from "ably";
 import UserMedia from "./models/UserMedia";
+import {FaceMessage} from "./models/FaceMessage";
 
 export type ConnectionState = "connected" | "disconnected"
 
@@ -9,9 +10,12 @@ export interface CallState {
     currentUsers: string[]
 }
 
+/**
+ * Uses Ably to send data across all clients.
+ */
 export default class Messaging {
     private ablyClient: Realtime;
-    private readonly CHANNEL_ID = "rooms:ben";
+    private readonly CHANNEL_ID = "rooms:lobby";
     private channel: Types.RealtimeChannelPromise | null = null
     private setCallState: (value: (((prevState: CallState) => CallState) | CallState)) => void;
     private connectedClientIds: string[];
@@ -38,6 +42,8 @@ export default class Messaging {
         const options: Ably.Types.ClientOptions = {
             key: process.env.NEXT_PUBLIC_ABLY_API_KEY,
             clientId: username,
+            echoMessages: false,
+            useBinaryProtocol: false
         }
         this.ablyClient = new Realtime(options)
         this.ablyClient.connection.on('connected', () => {
@@ -79,19 +85,16 @@ export default class Messaging {
             })
 
             this.channel.subscribe("face", (message: Types.Message) => {
-                if (message.clientId !== this.username) {
-                    // TODO measure the received size
-                    const faceMessage = FaceMessageProto.deserializeBinary(message.data)
-                    const coordinates = faceMessage.getFaceMeshCoordinates() as Uint8Array
-                    const int16Array = new Int16Array((new DataView(coordinates.buffer)).buffer)
-                    const coordinatesFloat = new Float32Array(int16Array)
-                    const faceMeshColor = faceMessage.getFaceMeshColor()
-                    this.updateRemoteFaceMeshs({
-                        clientId: message.clientId,
-                        normalizedLandmarks1D: coordinatesFloat,
-                        faceMeshColor: faceMeshColor
-                    })
-                }
+                // TODO measure the received size
+                const faceMessage = FaceMessage.decode(message.data)
+                // const faceMessage = FaceMessage.fromFlatBuffer(message.data)
+
+                this.updateRemoteFaceMeshs({
+                    clientId: message.clientId,
+                    normalizedLandmarks1D: faceMessage.coordinates,
+                    faceMeshColor: faceMessage.color,
+                    meshPointSize: faceMessage.meshPointSize,
+                })
             })
 
             this.channel.presence.subscribe("enter", (member) => {
@@ -128,37 +131,23 @@ export default class Messaging {
         })
     }
 
-    publishToLobby = async (face: Float32Array, faceMeshColor: string) => {
-    // TODO reduce vector precision.
-        // TODO use flatbuffers
-        // TODO use custom serialization
-        const message = new FaceMessageProto()
-        // cannot just cast it, because negative numbers because huge.
-        const int16Array = new Int16Array(face)
-        const dataView = new DataView(int16Array.buffer)
-        const uint8 = new Uint8Array(dataView.buffer)
-        message.setFaceMeshCoordinates(uint8)
-        // message.setFaceMeshColor(faceMeshColor)
-        const bytes = message.serializeBinary()
-
-        const deserializedMessage = FaceMessageProto.deserializeBinary(bytes)
-        const uint8before = message.getFaceMeshCoordinates() as Uint8Array
-        const int16Before = new Int16Array(new DataView(uint8before.buffer).buffer)
-        const uint8after = deserializedMessage.getFaceMeshCoordinates() as Uint8Array
-        const int16After = new Int16Array(new DataView(uint8after.buffer).buffer)
-        console.log({int16Before, int16After})
-        // const dataViewAgain = new DataView(coordinates.buffer)
-        // const int16ArrayAgain = new Int16Array(dataView.buffer)
-        // const coordinatesFloat = new Float32Array(int16ArrayAgain)
-
-
-        const lengthInBytes = bytes.length
+    publishToLobby = async (faceMeshCoordinates: Uint16Array, faceMeshColor: string, faceMeshSize: number) => {
         // TODO measure/ save the received size
-        await this.channel.publish("face", bytes)
+        const faceMessage = new FaceMessage(faceMeshCoordinates, faceMeshColor, faceMeshSize)
+        const int8Array = faceMessage.encode() // Custom serialization
+        // const int8Array = faceMessage.encodeIntoFlatBuffer() // Flatbuffers
+
+        // Testing it briefly
+        const faceMessageDeserialized = FaceMessage.decode(int8Array)
+        // const deserializedFaceMessage = FaceMessage.fromFlatBuffer(int8Array)
+        // console.log({deserializedFaceMessage})
+
+        // TODO investigate how this gets serialized
+        await this.channel.publish("face", int8Array)
     }
 
     leaveLobbyPresense = async () => {
-        await this.channel.presence.leave()h
+        await this.channel.presence.leave()
         this.connectedClientIds = this.connectedClientIds.filter((value) => value !== this.username)
         this.setCallState({
             connection: "connected",

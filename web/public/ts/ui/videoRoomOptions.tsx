@@ -6,14 +6,19 @@ import {Dialog} from "@headlessui/react";
 interface Props {
     toggleOriginalVideoFeed: (boolean) => void
     changeFaceMeshColor: (string) => void
+    changeFaceMeshSize: (number) => void
 }
 
-const VideoRoomOptions = ({toggleOriginalVideoFeed, changeFaceMeshColor}: Props) => {
+const VideoRoomOptions = ({toggleOriginalVideoFeed, changeFaceMeshColor, changeFaceMeshSize}: Props) => {
     const [colorPickerIsOpen, setColorPickerIsOpen] = useState(false)
+    const [faceMeshSizePickerIsOpen, setFaceMeshSizePickerIsOpen] = useState(false)
     const colorFieldRef = useRef(null)
+    const meshPointSizeRef = useRef(null)
     const [colorField, setColorField] = useState("")
+    const [meshPointSizeField, setMeshPointSizeField] = useState(null)
 
     const validRegexPattern = /^#([0-9A-F]{3}){1,2}$/i;
+
     function changeColor() {
         if (validRegexPattern.test(colorField)) {
             changeFaceMeshColor(colorField)
@@ -23,10 +28,17 @@ const VideoRoomOptions = ({toggleOriginalVideoFeed, changeFaceMeshColor}: Props)
         }
     }
 
-    function isHexColor (hex) {
+    function isHexColor(hex) {
         return typeof hex === 'string'
             && hex.length <= 6
             && !isNaN(Number('0x' + hex))
+    }
+
+    function handleNewMeshSize() {
+        if (meshPointSizeField && meshPointSizeField <= 5 && meshPointSizeField >= 0) {
+            setMeshPointSizeField(null)
+            changeFaceMeshSize(meshPointSizeField)
+        }
     }
 
     return (
@@ -46,6 +58,14 @@ const VideoRoomOptions = ({toggleOriginalVideoFeed, changeFaceMeshColor}: Props)
                         <button onClick={() => setColorPickerIsOpen(true)}
                                 className={`${active && "hover:bg-gray-100"}`}>
                             Change skin tone...
+                        </button>
+                    )}
+                </Menu.Item>
+                <Menu.Item>
+                    {(active) => (
+                        <button onClick={() => setFaceMeshSizePickerIsOpen(true)}
+                                className={`${active && "hover:bg-gray-100"}`}>
+                            Change face mesh point size...
                         </button>
                     )}
                 </Menu.Item>
@@ -70,9 +90,27 @@ const VideoRoomOptions = ({toggleOriginalVideoFeed, changeFaceMeshColor}: Props)
                            setColorField(event.target.value)
                        }} name={"colorField"} enterKeyHint={"enter"}
                        placeholder={"#6f00ff"}
-                       aria-label={"Enter a username..."} required={true}/>
+                       aria-label={"Enter a hexcode color..."} required={true}/>
 
                 <button onClick={changeColor}>Change</button>
+                <button onClick={() => setColorPickerIsOpen(false)}>Cancel</button>
+            </Dialog>
+            <Dialog open={faceMeshSizePickerIsOpen} onClose={() => setFaceMeshSizePickerIsOpen(false)}>
+                <Dialog.Overlay/>
+
+                <Dialog.Title>Change face mesh size:</Dialog.Title>
+                <Dialog.Description>
+                    This will change the size of the dots representing your face.
+                </Dialog.Description>
+                <label className="text-2xl" htmlFor={"usernameField"}>New size (Between 0 and 5):</label>
+                <input ref={meshPointSizeRef} className={"text-2xl text-white-800"} value={meshPointSizeField}
+                       onChange={(event) => {
+                           setMeshPointSizeField(event.target.value)
+                       }} name={"colorField"} enterKeyHint={"enter"}
+                       placeholder={"0.25"}
+                       aria-label={"Enter a mesh size between 0 and 5..."} required={true}/>
+
+                <button onClick={handleNewMeshSize}>Change</button>
                 <button onClick={() => setColorPickerIsOpen(false)}>Cancel</button>
             </Dialog>
         </Menu>

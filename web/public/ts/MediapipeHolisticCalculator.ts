@@ -14,15 +14,9 @@ export default class MediapipeHolisticCalculator {
      */
     private readonly holistic: Holistic
     private readonly resultsCallback: (results: Results) => void;
-    private readonly outputWidth: number;
-    private readonly outputHeight: number;
 
-    constructor(resultsCallback: (results: Results) => void,
-                outputWidth: number,
-                outputHeight: number) {
+    constructor(resultsCallback: (results: Results) => void) {
         this.resultsCallback = resultsCallback
-        this.outputWidth = outputWidth
-        this.outputHeight = outputHeight
 
         this.holistic = new Holistic({
             locateFile: (file) => {

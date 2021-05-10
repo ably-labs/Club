@@ -1,7 +1,8 @@
 import React, {useRef, useState} from 'react';
 import {Dialog} from "@headlessui/react";
-import {generateRandomUsername, pickRandomTailwindColor} from "./name_utilities";
+import {generateRandomUsername} from "./names";
 import {FaTimes} from "react-icons/fa";
+import {pickRandomTailwindColor} from "./colors";
 
 interface Props {
     handleSubmit: (string) => void
@@ -12,6 +13,7 @@ interface Props {
 export default function EditUsernameModal({handleSubmit, show, handleClose}: Props) {
     const usernameFieldRef = useRef(null)
     const [usernameField, setUsernameField] = useState("")
+    const [randomColor] = useState(pickRandomTailwindColor())
 
     if (!show) {
         return <></>
@@ -30,7 +32,7 @@ export default function EditUsernameModal({handleSubmit, show, handleClose}: Pro
             initialFocus={usernameFieldRef} open={show} onClose={handleClose}
             className={"fixed inset-0 border-2 overflow-y-auto z-10"}>
             <div
-                className={`flex items-center justify-center min-h-screen flex-col bg-${pickRandomTailwindColor()}-500`}>
+                className={`flex items-center justify-center min-h-screen flex-col bg-${randomColor.name}-500`}>
                 {/*<Dialog.Overlay className={"fixed inset-0 bg-white opacity-70"}/>*/}
                 <button className={"inset-0"} onClick={handleClose}><FaTimes size={48}/></button>
                 <Dialog.Title className={"text-2xl"}>Edit username</Dialog.Title>

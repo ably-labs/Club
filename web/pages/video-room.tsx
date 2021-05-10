@@ -1,15 +1,15 @@
-import Link from 'next/link';
 import React, {ReactElement, useEffect, useRef, useState} from 'react';
 import Head from 'next/head';
 import VideoRenderer from "../public/ts/VideoRenderer";
 import Messaging, {CallState} from "../public/ts/Messaging";
 import CallStateDisplay from "../public/ts/CallStateDisplay";
 import EditUsernameModal from "../public/ts/EditUsernameModal";
-import {generateRandomUsername, pickRandomTailwindColor} from "../public/ts/name_utilities";
+import {generateRandomUsername} from "../public/ts/names";
 import {BrowserView} from 'react-device-detect';
 import {FaEdit, FaPause, FaPhone, FaPhoneSlash, FaPlay} from "react-icons/fa";
 import VideoRoomOptions from "../public/ts/ui/videoRoomOptions";
 import Layout from "../components/layout";
+import {pickRandomTailwindColor} from "../public/ts/colors";
 
 export default function VideoRoom(): ReactElement {
     const [username, setUsername] = useState('')
@@ -23,7 +23,7 @@ export default function VideoRoom(): ReactElement {
     const messagingRef = useRef<Messaging>(null);
     const fpsCounterRef = useRef<HTMLDivElement>(null);
     const [callIsConnected, setCallButtonEnabled] = useState(true);
-    const [color, setColor] = useState(pickRandomTailwindColor())
+    const [color, setColor] = useState(null)
 
     const DEFAULT_ORIGINAL_VIDEO_WIDTH = 0
     const [originalVideoOn, setOriginalVideoOn] = useState(false)
@@ -41,8 +41,16 @@ export default function VideoRoom(): ReactElement {
         setCallButtonEnabled(false)
         const username = generateRandomUsername()
         setUsername(username)
+        const randomColor = pickRandomTailwindColor()
+        setColor(randomColor.name)
         messagingRef.current = new Messaging(username, setCallState);
-        videoRendererRef.current = new VideoRenderer(videoRef.current, renderOutputRef.current, fpsCounterRef.current, messagingRef.current);
+        videoRendererRef.current = new VideoRenderer(videoRef.current,
+            renderOutputRef.current,
+            fpsCounterRef.current,
+            messagingRef.current,
+            {faceMeshColor: randomColor.hexCode},
+            0.5
+        );
         messagingRef.current.setUpdateRemoteFaceHandler(videoRendererRef.current.updateRemoteUserMedia);
         messagingRef.current.setRemoveRemoteUserHandler(videoRendererRef.current.removeRemoteUser);
         (async () => {
@@ -58,7 +66,7 @@ export default function VideoRoom(): ReactElement {
 
     const joinCallHandler = async () => {
         setCallButtonEnabled(false);
-        videoRendererRef.current.scheduleFaceDataPublishing(2)
+        videoRendererRef.current.scheduleFaceDataPublishing()
         await messagingRef.current.joinLobbyPresence()
     };
 
@@ -94,7 +102,9 @@ export default function VideoRoom(): ReactElement {
         }
         setUsername(username)
         videoRendererRef.current.updateUsername(username)
-        setColor(pickRandomTailwindColor())
+        const randomColor = pickRandomTailwindColor()
+        setColor(randomColor.name)
+        videoRendererRef.current.changeLocalFaceMeshColor(randomColor.hexCode)
         await messagingRef.current.setUsername(username)
         // TODO save to local storage, and re-read on startup everytime.
     }
@@ -105,6 +115,10 @@ export default function VideoRoom(): ReactElement {
 
     const changeFaceMeshColor = (newColor: string) => {
         videoRendererRef.current.changeLocalFaceMeshColor(newColor)
+    }
+
+    const changeFaceMeshSize = (newSize: number) => {
+        videoRendererRef.current.changeLocalFaceMeshSize(newSize)
     }
 
     // TODO add text overlay to say "press the green button".
@@ -163,7 +177,9 @@ export default function VideoRoom(): ReactElement {
                                 className={"bg-indigo-500 hover:bg-indigo-700 text-white mx-2 font-bold py-4 px-4 rounded-full disabled:bg-gray-500 disabled:cursor-not-allowed"}
                                 onClick={toggleTracking}>{trackingEnabled ? <FaPause/> : <FaPlay/>}
                             </button>
-                            <VideoRoomOptions toggleOriginalVideoFeed={toggleOriginalVideoFeed} changeFaceMeshColor={changeFaceMeshColor}/>
+                            <VideoRoomOptions toggleOriginalVideoFeed={toggleOriginalVideoFeed}
+                                              changeFaceMeshColor={changeFaceMeshColor}
+                                              changeFaceMeshSize={changeFaceMeshSize}/>
                         </div>
                     </div>
                     {CallStateDisplay({callState})}

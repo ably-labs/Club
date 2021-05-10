@@ -1,7 +1,7 @@
 import Ably, {Realtime} from 'ably/promises'
 import {Types} from "ably";
-import UserMedia, {FaceMessage} from "./models/UserMedia";
-import msgpack5 from "msgpack5";
+import UserMedia from "./models/UserMedia";
+import {FaceMessage} from "./models/FaceMessage";
 
 export type ConnectionState = "connected" | "disconnected"
 
@@ -10,16 +10,18 @@ export interface CallState {
     currentUsers: string[]
 }
 
+/**
+ * Uses Ably to send data across all clients.
+ */
 export default class Messaging {
     private ablyClient: Realtime;
-    private readonly CHANNEL_ID = "rooms:ben";
+    private readonly CHANNEL_ID = "rooms:lobby";
     private channel: Types.RealtimeChannelPromise | null = null
     private setCallState: (value: (((prevState: CallState) => CallState) | CallState)) => void;
     private connectedClientIds: string[];
     private username: string;
     private updateRemoteFaceMeshs: (remoteUserMedia: UserMedia) => void
     private removeRemoteUser: (clientId: string) => void
-    private messagePack = msgpack5()
 
     constructor(username: string,
                 setCallState: (value: (((prevState: CallState) => CallState) | CallState)) => void,
@@ -40,6 +42,8 @@ export default class Messaging {
         const options: Ably.Types.ClientOptions = {
             key: process.env.NEXT_PUBLIC_ABLY_API_KEY,
             clientId: username,
+            echoMessages: false,
+            useBinaryProtocol: false
         }
         this.ablyClient = new Realtime(options)
         this.ablyClient.connection.on('connected', () => {
@@ -81,16 +85,16 @@ export default class Messaging {
             })
 
             this.channel.subscribe("face", (message: Types.Message) => {
-                if (message.clientId !== this.username) {
-                    const array = message.data
-                    const faceMessage = this.messagePack.decode(array) as FaceMessage
-                    const faceArray = new Float32Array(Object.values(faceMessage.face));
-                    this.updateRemoteFaceMeshs({
-                        clientId: message.clientId,
-                        normalizedLandmarks1D: faceArray,
-                        faceMeshColor: faceMessage.faceMeshColor
-                    })
-                }
+                // TODO measure the received size
+                const faceMessage = FaceMessage.decode(message.data)
+                // const faceMessage = FaceMessage.fromFlatBuffer(message.data)
+
+                this.updateRemoteFaceMeshs({
+                    clientId: message.clientId,
+                    normalizedLandmarks1D: faceMessage.coordinates,
+                    faceMeshColor: faceMessage.color,
+                    meshPointSize: faceMessage.meshPointSize,
+                })
             })
 
             this.channel.presence.subscribe("enter", (member) => {
@@ -127,12 +131,19 @@ export default class Messaging {
         })
     }
 
-    publishToLobby = async (face: Float32Array, faceMeshColor: string) => {
-        const faceMessage: FaceMessage = {
-            face: face,
-            faceMeshColor: faceMeshColor
-        }
-        await this.channel.publish("face", this.messagePack.encode(faceMessage))
+    publishToLobby = async (faceMeshCoordinates: Uint16Array, faceMeshColor: string, faceMeshSize: number) => {
+        // TODO measure/ save the received size
+        const faceMessage = new FaceMessage(faceMeshCoordinates, faceMeshColor, faceMeshSize)
+        const int8Array = faceMessage.encode() // Custom serialization
+        // const int8Array = faceMessage.encodeIntoFlatBuffer() // Flatbuffers
+
+        // Testing it briefly
+        const faceMessageDeserialized = FaceMessage.decode(int8Array)
+        // const deserializedFaceMessage = FaceMessage.fromFlatBuffer(int8Array)
+        // console.log({deserializedFaceMessage})
+
+        // TODO investigate how this gets serialized
+        await this.channel.publish("face", int8Array)
     }
 
     leaveLobbyPresense = async () => {
@@ -156,6 +167,10 @@ export default class Messaging {
         this.ablyClient.close()
     }
 
+    /**
+     *
+     * @param removeRemoteUser
+     */
     setRemoveRemoteUserHandler(removeRemoteUser: (clientId: string) => void) {
         this.removeRemoteUser = removeRemoteUser
     }

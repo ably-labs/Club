@@ -10,16 +10,16 @@ export default function Home() {
     return (
         <div className={"container text-center flex flex-col h-screen max-w-none"}>
             <Head>
-                <title>Club</title>
+                <title>Club2D</title>
                 <link rel='icon' href='/favicon.ico'/>
             </Head>
             <div className={"flex-grow flex flex-col justify-center"}>
-                <p className={"block text-4xl font-bold"}>Club,</p>
-                <p className={"block text-2xl"}> anonymous meeting rooms with a spatial environment</p>
+                <p className={"block text-4xl font-bold"}>Club2D</p>
+                <p className={"block text-2xl"}>anonymous, yet in the same room.</p>
                 <Link href='/video-room/'>
-                    <a className={"hover:underline text-blue-600 text-lg"}>join the lobby now</a>
+                    <a className={"hover:underline text-blue-600 text-lg"}>enter.</a>
                 </Link>
-                <div className={"text-sm"}>(support for rooms coming soon)</div>
+                {/*<div className={"text-sm"}>(support for rooms coming soon)</div>*/}
             </div>
 
             <div className={"flex-shrink m-4 flex-col self-center"}>
@@ -31,7 +31,7 @@ export default function Home() {
                         {createLink("MediaPipe", "https://mediapipe.dev/")}{", "}
                         {createLink("Next.js", "https://nextjs.org/")}{", "}
                         {createLink("React", "https://reactjs.org/")}{", "}
-                        {createLink("Pion", "https://pion.ly/")}{", "}
+                        {/*{createLink("Pion", "https://pion.ly/")}{", "}*/}
                         {createLink("Cloudflare Pages", "https://cloudflare.com/")}{". "}
                     </p>
                 </div>

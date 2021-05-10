@@ -1,0 +1,9 @@
+namespace club2d;
+
+table UserState {
+    face_mesh:[byte];
+    face_mesh_color:[byte];
+    face_mesh_size: float32;
+}
+
+root_type UserState;

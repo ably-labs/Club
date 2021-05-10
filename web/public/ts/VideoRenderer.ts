@@ -12,13 +12,14 @@ import MediapipeHolisticCalculator from "./MediapipeHolisticCalculator";
 import Stats from 'stats.js'
 import Messaging from "./Messaging";
 import UserMedia from "./models/UserMedia";
-import {Direction} from "./models/Direction";
+import Direction from "./models/Direction";
 import {Results} from "@mediapipe/holistic";
 
 /**
  * Renders video to a three.js renderer periodically based on its internal state.
  * Update this state to change the render output for the next frame.
- * There are multiple types of state, such as local user's face mesh, remote user's data, and perhaps more to come (objects).
+ * There are multiple types of state, such as local user's face mesh,
+ * remote user's data, and perhaps more to come (objects).
  */
 export default class VideoRenderer {
     videoElement: HTMLVideoElement
@@ -29,7 +30,7 @@ export default class VideoRenderer {
     private readonly rendererHeight: number;
     private messaging: Messaging
     renderId: number | null = null
-    private isRunning: Boolean
+    private isRunning: boolean
     private fpsOutput: HTMLParagraphElement;
     private holisticCalculator: MediapipeHolisticCalculator;
     private meshPoints: Points<BufferGeometry, PointsMaterial>;
@@ -87,7 +88,8 @@ export default class VideoRenderer {
             100000);
 
         this.holisticCalculator = new MediapipeHolisticCalculator(this.updateScene);
-        if (videoElement.readyState != 4) { // https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/readyState
+        // https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/readyState
+        if (videoElement.readyState != 4) { 
             videoElement.addEventListener('canplay', async () => {
                 await this.start()
             }, {once: true})
@@ -107,7 +109,9 @@ export default class VideoRenderer {
         const intervalInMilliseconds = 1000 / this.uploadFramesPerSecond
         this.periodicFaceData = window.setInterval(async () => {
             if (this.latestLandmarks) {
-                await this.messaging.publishToLobby(this.latestLandmarks, this.faceMeshColor, this.localFaceMeshPointSize);
+                await this.messaging.publishToLobby(this.latestLandmarks, 
+                    this.faceMeshColor,
+                    this.localFaceMeshPointSize);
             }
         }, intervalInMilliseconds)
     }
@@ -128,7 +132,8 @@ export default class VideoRenderer {
     step = async () => {
         if (this.isRunning) {
             this.isRunning = true
-            await this.holisticCalculator.send(this.videoElement) //  continues in [MediaPipeFaceMeshCalculator.imageResultHandler]
+            await this.holisticCalculator.send(this.videoElement)
+            //  continues in [MediaPipeFaceMeshCalculator.imageResultHandler]
         }
     }
 
@@ -167,42 +172,44 @@ export default class VideoRenderer {
      * @returns Float32Array All face landmarks for 1 face in a 1-dimensional list: x1, y1, z1, x2, y2, z2.
      * @private
      */
-    private normalizedLandmarks1D: Uint16Array;
+    private scaledCoords: Uint16Array;
 
     private transform(results: Results): Uint16Array {
         const poseLandmarks = results.poseLandmarks
         const normalizedLandmarks = results.faceLandmarks
         if (normalizedLandmarks) {
-            if (!this.normalizedLandmarks1D) {
-                this.normalizedLandmarks1D = new Uint16Array(normalizedLandmarks.length * 3 + 6);
+            if (!this.scaledCoords) {
+                this.scaledCoords = new Uint16Array(normalizedLandmarks.length * 3 + 6);
             }
             // Convert allCoordinates into 1-d array.
+            const xMultiplier = this.cameraWidth * this.scaleFactor
+            const yMultiplier = this.cameraHeight * this.scaleFactor
+            const xShift = this.offset.right
+            const yShift = (this.cameraHeight * this.scaleFactor) + this.offset.up
+            const zShift = 10
             for (let i = 0; i < normalizedLandmarks.length * 3; i++) {
                 const meshCoordinateNumber = Math.floor(i / 3)
                 const xYZIndex = i % 3
                 if (xYZIndex === 0) {
-                    this.normalizedLandmarks1D[i] = (normalizedLandmarks[meshCoordinateNumber].x * this.cameraWidth * this.scaleFactor) + this.offset.right
+                    this.scaledCoords[i] = (normalizedLandmarks[meshCoordinateNumber].x * xMultiplier) + xShift
                 } else if (xYZIndex === 1) {
-                    this.normalizedLandmarks1D[i] =  -(normalizedLandmarks[meshCoordinateNumber].y) * this.cameraHeight * this.scaleFactor + (this.cameraHeight * this.scaleFactor) + this.offset.up
+                    this.scaledCoords[i] =  -(normalizedLandmarks[meshCoordinateNumber].y) * yMultiplier + yShift
                 } else {
-                    this.normalizedLandmarks1D[i] = (normalizedLandmarks[meshCoordinateNumber].z + 10) * this.cameraWidth * this.scaleFactor
+                    this.scaledCoords[i] = (normalizedLandmarks[meshCoordinateNumber].z + zShift) * xMultiplier
                 }
             }
 
-            // // 2 shoulders
-            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 6] = 60000
-            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 5] = 40000
-            this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 4] = 0
-            // this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 6] = poseLandmarks[12].x * this.cameraWidth + this.offset.right
-            // this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 5] = -poseLandmarks[12].y * this.cameraHeight + (this.cameraHeight) + this.offset.up
-            // this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 4] = poseLandmarks[12].z
-            // this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 3] = poseLandmarks[11].x * this.cameraWidth + this.offset.right
-            // this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 2] = -poseLandmarks[11].y * this.cameraHeight + (this.cameraHeight) + this.offset.up
-            // this.normalizedLandmarks1D[this.normalizedLandmarks1D.length - 1] = poseLandmarks[11].z
+            // 2 shoulders
+            this.scaledCoords[this.scaledCoords.length - 6] = poseLandmarks[12].x * xMultiplier + xShift
+            this.scaledCoords[this.scaledCoords.length - 5] = -poseLandmarks[12].y * yMultiplier + yShift
+            this.scaledCoords[this.scaledCoords.length - 4] = (poseLandmarks[12].z + zShift) * xMultiplier
+            this.scaledCoords[this.scaledCoords.length - 3] = poseLandmarks[11].x * xMultiplier + xShift
+            this.scaledCoords[this.scaledCoords.length - 2] = -poseLandmarks[11].y * yMultiplier + yShift
+            this.scaledCoords[this.scaledCoords.length - 1] = (poseLandmarks[11].z + zShift) * xMultiplier
         } else {
             console.warn("Face not found...")
         }
-        return this.normalizedLandmarks1D
+        return this.scaledCoords
     }
 
     /**
@@ -213,7 +220,7 @@ export default class VideoRenderer {
         right: 50,
     }
     // TODO handle physical edge cases. But what is the width of the camera box
-    moveFace = (direction: Direction, quantity) => {
+    moveFace = (direction: Direction, quantity: number): void => {
         switch (direction) {
             case Direction.Left:
                 if (this.offset.right - quantity >= 0) {
@@ -243,7 +250,7 @@ export default class VideoRenderer {
             return
         }
         if (!this.meshPoints) {
-            let material = new PointsMaterial({color: this.faceMeshColor, size: this.localFaceMeshPointSize});
+            const material = new PointsMaterial({color: this.faceMeshColor, size: this.localFaceMeshPointSize});
             const geometry = new BufferGeometry()
             this.meshPoints = new Points(geometry, material)
             this.meshPoints.name = "User face mesh"
@@ -257,23 +264,23 @@ export default class VideoRenderer {
         }
     }
 
-    changeLocalFaceMeshColor = (color: string) => {
+    changeLocalFaceMeshColor = (color: string): void => {
         this.faceMeshColor = color
         this.meshPoints.material.color = new Color(color)
         this.meshPoints.material.needsUpdate = true
     }
 
-    changeLocalFaceMeshSize = (size: number) => {
+    changeLocalFaceMeshSize = (size: number): void => {
         this.meshPoints.material.size = size
         this.localFaceMeshPointSize = size
         this.meshPoints.material.needsUpdate = true
     }
 
-    updateRemoteUserMedia = (remoteUserMedia: UserMedia) => {
+    updateRemoteUserMedia = (remoteUserMedia: UserMedia): void => {
         this.remoteUserMedias.set(remoteUserMedia.clientId, remoteUserMedia)
     }
 
-    removeRemoteUser = (clientId: string) => {
+    removeRemoteUser = (clientId: string): void => {
         this.remoteUserMedias.delete(clientId)
         const points = this.remoteUserMeshPoints.get(clientId)
         points.parent.remove(points)
@@ -287,13 +294,14 @@ export default class VideoRenderer {
         this.remoteUserMedias.forEach((userMedia: UserMedia, clientId: string) => {
             if (this.remoteUserMeshPoints.has(clientId)) {
                 const remoteUserMeshPoints = this.remoteUserMeshPoints.get(clientId)
-                remoteUserMeshPoints.geometry.setAttribute('position', new BufferAttribute(userMedia.normalizedLandmarks1D, 3))
+                remoteUserMeshPoints.geometry.setAttribute('position',
+                    new BufferAttribute(userMedia.normalizedLandmarks1D, 3))
                 remoteUserMeshPoints.material.size = userMedia.meshPointSize
                 remoteUserMeshPoints.material.needsUpdate = true
                 remoteUserMeshPoints.geometry.attributes["position"].needsUpdate = true;
             } else {
                 const meshColor = this.remoteUserMedias.get(clientId).faceMeshColor
-                let material = new PointsMaterial({color: meshColor, size: userMedia.meshPointSize});
+                const material = new PointsMaterial({color: meshColor, size: userMedia.meshPointSize});
                 const geometry = new BufferGeometry()
                 geometry.setAttribute('position', new BufferAttribute(userMedia.normalizedLandmarks1D, 3))
                 const remoteUserMeshPoints = new Points(geometry, material)
@@ -317,7 +325,7 @@ export default class VideoRenderer {
         }
     }
 
-    private localFaceTrackingEnabled: boolean = true
+    private localFaceTrackingEnabled = true
 
     dispose() {
         this.renderer.dispose()

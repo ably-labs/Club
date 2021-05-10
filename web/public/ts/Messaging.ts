@@ -1,7 +1,7 @@
 import Ably, {Realtime} from 'ably/promises'
 import {Types} from "ably";
 import UserMedia from "./models/UserMedia";
-import {FaceMessage} from "./models/FaceMessage";
+import FaceMessage from "./models/FaceMessage";
 
 export type ConnectionState = "connected" | "disconnected"
 

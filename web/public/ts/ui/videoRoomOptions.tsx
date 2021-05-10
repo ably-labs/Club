@@ -1,7 +1,6 @@
 import React, {useRef, useState} from 'react';
-import {Menu} from "@headlessui/react";
+import {Dialog, Menu} from "@headlessui/react";
 import {FaEllipsisV} from "react-icons/fa";
-import {Dialog} from "@headlessui/react";
 
 interface Props {
     toggleOriginalVideoFeed: (boolean) => void

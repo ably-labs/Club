@@ -37,12 +37,14 @@ export default function VideoRoom(): ReactElement {
         setUsername(randomUsername)
         setColor(randomColor.name)
         messagingRef.current = new Messaging(randomUsername, setCallState);
+        const frameRate = parseInt(process.env.NEXT_PUBLIC_ABLY_UPLOAD_FRAME_RATE)
         videoRendererRef.current = new VideoRenderer(videoRef.current,
             renderOutputRef.current,
             fpsCounterRef.current,
             messagingRef.current,
+            randomUsername,
             {faceMeshColor: randomColor.hexCode, stopLoadingScreenCallback: setLoading},
-            2
+            frameRate
         );
         messagingRef.current.setUpdateRemoteFaceHandler(videoRendererRef.current.updateRemoteUserMedia);
         messagingRef.current.setRemoveRemoteUserHandler(videoRendererRef.current.removeRemoteUser);
@@ -94,9 +96,6 @@ export default function VideoRoom(): ReactElement {
         }
         setUsername(newUsername)
         videoRendererRef.current.updateUsername(newUsername)
-        const randomColor = pickRandomTailwindColor()
-        setColor(randomColor.name)
-        videoRendererRef.current.changeLocalFaceMeshColor(randomColor.hexCode)
         await messagingRef.current.setUsername(newUsername)
         // TODO save to local storage, and re-read on startup everytime.
     }

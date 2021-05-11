@@ -1,11 +1,11 @@
 import {
     BufferAttribute,
     BufferGeometry,
-    Camera, Color,
+    Camera, Color, FontLoader, Material, Mesh, MeshBasicMaterial, Object3D,
     OrthographicCamera,
     Points,
     PointsMaterial,
-    Scene,
+    Scene, TextGeometry,
     WebGLRenderer
 } from "three";
 import MediapipeHolisticCalculator from "./MediapipeHolisticCalculator";
@@ -34,6 +34,7 @@ export default class VideoRenderer {
     private fpsOutput: HTMLParagraphElement;
     private holisticCalculator: MediapipeHolisticCalculator;
     private meshPoints: Points<BufferGeometry, PointsMaterial>;
+    private localUsernameRender: Mesh<TextGeometry, MeshBasicMaterial>
     private stats: Stats;
     private latestLandmarks: Uint16Array | null = null;
     private periodicFaceData: number;
@@ -42,13 +43,16 @@ export default class VideoRenderer {
     private cameraWidth: number;
     private cameraHeight: number;
     private localFaceMeshPointSize: number;
+    private usernameAnchorCoordinates: Uint16Array
     private scaleFactor: number;
     private setLoadingScreenCallback: (boolean) => void
+    private username: string;
 
     constructor(videoElement: HTMLVideoElement,
                 outputElement: HTMLDivElement,
                 fpsOutput: HTMLDivElement,
                 messaging: Messaging,
+                username: string,
                 videoRendererOptions: VideoRendererOptions,
                 uploadFramesPerSecond = 2,
                 rendererWidth = 680,
@@ -58,6 +62,7 @@ export default class VideoRenderer {
         outputElement.innerHTML = "";
         this.fpsOutput = fpsOutput;
         this.messaging = messaging;
+        this.username = username;
         this.rendererWidth = rendererWidth
         this.rendererHeight = rendererHeight
         this.uploadFramesPerSecond = uploadFramesPerSecond
@@ -97,7 +102,8 @@ export default class VideoRenderer {
             }, {once: true})
             // Render an empty canvas temporarily, to lay out the screen nicely.
             this.renderer.render(this.scene, this.camera);
-            window.requestAnimationFrame(() => { /* do nothing extra */ })
+            window.requestAnimationFrame(() => { /* do nothing extra */
+            })
         } else {
             this.start()
         }
@@ -105,8 +111,13 @@ export default class VideoRenderer {
         this.setupKeyControls()
     }
 
-    updateUsername = (username: string): void => {
-        console.warn(`Not implemented: render the ${username} username`)
+    updateUsername = (newUsername: string): void => {
+        this.username = newUsername;
+        // need to delete old username text, and re-render it
+        this.localUsernameRender.parent.remove(this.localUsernameRender)
+        this.renderText(this.username, this.faceMeshColor, this.usernameAnchorCoordinates, (textMesh) => {
+            this.localUsernameRender = textMesh
+        })
     }
 
     scheduleFaceDataPublishing(): void {
@@ -116,7 +127,9 @@ export default class VideoRenderer {
             if (this.latestLandmarks) {
                 await this.messaging.publishToLobby(this.latestLandmarks,
                     this.faceMeshColor,
-                    this.localFaceMeshPointSize);
+                    this.localFaceMeshPointSize,
+                    this.usernameAnchorCoordinates
+                );
             }
         }, intervalInMilliseconds)
     }
@@ -157,7 +170,7 @@ export default class VideoRenderer {
      * Update the face mesh state (in the three.js scene) in this class, which is used in the render loop.
      * @param results Mediapipe holistic results data type, containing hands, body and face coordinates.
      */
-    updateScene = (results: Results) => {
+    updateScene = (results: Results): void => {
         this.latestLandmarks = this.transform(results)
         this.updateSceneUsingLocalFaceState()
         this.updateSceneUsingRemoteFacesState()
@@ -192,17 +205,31 @@ export default class VideoRenderer {
             const xShift = this.offset.right
             const yShift = (this.cameraHeight * this.scaleFactor) + this.offset.up
             const zShift = 10
+
+            let xUsernameAnchor = this.cameraWidth;
+            let yUsernameAnchor = this.cameraHeight;
             for (let i = 0; i < normalizedLandmarks.length * 3; i++) {
                 const meshCoordinateNumber = Math.floor(i / 3)
                 const xYZIndex = i % 3
                 if (xYZIndex === 0) {
                     this.scaledCoords[i] = (normalizedLandmarks[meshCoordinateNumber].x * xMultiplier) + xShift
+                    if (this.scaledCoords[i] < xUsernameAnchor) { // set xAnchor to be the lowest x value
+                        xUsernameAnchor = this.scaledCoords[i]
+                    }
                 } else if (xYZIndex === 1) {
                     this.scaledCoords[i] = -(normalizedLandmarks[meshCoordinateNumber].y) * yMultiplier + yShift
+                    if (this.scaledCoords[i] < yUsernameAnchor) { // set yAnchor to be the lowest y value
+                        yUsernameAnchor = this.scaledCoords[i]
+                    }
                 } else {
                     this.scaledCoords[i] = (normalizedLandmarks[meshCoordinateNumber].z + zShift) * xMultiplier
                 }
             }
+
+            const usernameAnchorCoordinates2D = new Uint16Array(2);
+            usernameAnchorCoordinates2D[0] = xUsernameAnchor
+            usernameAnchorCoordinates2D[1] = yUsernameAnchor
+            this.changeLocalAnchorCoordinates(usernameAnchorCoordinates2D)
 
             // 2 shoulders
             this.scaledCoords[this.scaledCoords.length - 6] = poseLandmarks[12].x * xMultiplier + xShift
@@ -256,14 +283,27 @@ export default class VideoRenderer {
         }
         if (!this.meshPoints) {
             this.setLoadingScreenCallback(false)
+
+            // Mesh points
             const material = new PointsMaterial({color: this.faceMeshColor, size: this.localFaceMeshPointSize});
             const geometry = new BufferGeometry()
             this.meshPoints = new Points(geometry, material)
             this.meshPoints.name = "User face mesh"
             this.meshPoints.geometry.setAttribute('position', new BufferAttribute(this.latestLandmarks, 3))
             this.scene.add(this.meshPoints)
+
+            this.renderText(this.username, this.faceMeshColor, this.usernameAnchorCoordinates, (textMesh) => {
+                this.localUsernameRender = textMesh
+            })
         } else {
             if (this.localFaceTrackingEnabled) {
+                if (this.localUsernameRender) {
+                    this.localUsernameRender.position.set(
+                        this.usernameAnchorCoordinates[0],
+                        this.usernameAnchorCoordinates[1],
+                        0
+                    )
+                }
                 this.meshPoints.geometry.setAttribute('position', new BufferAttribute(this.latestLandmarks, 3))
                 this.meshPoints.geometry.attributes["position"].needsUpdate = true;
             }
@@ -274,12 +314,18 @@ export default class VideoRenderer {
         this.faceMeshColor = color
         this.meshPoints.material.color = new Color(color)
         this.meshPoints.material.needsUpdate = true
+        this.localUsernameRender.material.color = new Color(color)
+        this.localUsernameRender.material.needsUpdate = true
     }
 
     changeLocalFaceMeshSize = (size: number): void => {
         this.meshPoints.material.size = size
         this.localFaceMeshPointSize = size
         this.meshPoints.material.needsUpdate = true
+    }
+
+    changeLocalAnchorCoordinates = (coordinate2d: Uint16Array): void => {
+        this.usernameAnchorCoordinates = coordinate2d
     }
 
     updateRemoteUserMedia = (remoteUserMedia: UserMedia): void => {
@@ -293,10 +339,17 @@ export default class VideoRenderer {
             points.parent.remove(points)
             this.remoteUserMeshPoints.delete(clientId)
         }
+        if (this.remoteUserNameGeometries.has(clientId)) {
+            const text = this.remoteUserNameGeometries.get(clientId)
+            text.parent.remove(text)
+            this.remoteUserNameGeometries.delete(clientId)
+        }
     }
 
+    // TODO I should put them all in one...
     private remoteUserMedias = new Map<string, UserMedia>()
     private remoteUserMeshPoints = new Map<string, Points<BufferGeometry, PointsMaterial>>()
+    private remoteUserNameGeometries = new Map<string, Mesh>()
 
     private updateSceneUsingRemoteFacesState() {
         this.remoteUserMedias.forEach((userMedia: UserMedia, clientId: string) => {
@@ -307,6 +360,14 @@ export default class VideoRenderer {
                 remoteUserMeshPoints.material.size = userMedia.meshPointSize
                 remoteUserMeshPoints.material.needsUpdate = true
                 remoteUserMeshPoints.geometry.attributes["position"].needsUpdate = true;
+                const textMesh = this.remoteUserNameGeometries.get(clientId)
+                if (textMesh) {
+                    textMesh.position.set(
+                        userMedia.usernameAnchorCoordinates[0],
+                        userMedia.usernameAnchorCoordinates[1],
+                        0
+                    )
+                }
             } else {
                 const meshColor = this.remoteUserMedias.get(clientId).faceMeshColor
                 const material = new PointsMaterial({color: meshColor, size: userMedia.meshPointSize});
@@ -316,8 +377,45 @@ export default class VideoRenderer {
                 remoteUserMeshPoints.name = `${userMedia.clientId} face mesh`
                 this.remoteUserMeshPoints.set(userMedia.clientId, remoteUserMeshPoints)
                 this.scene.add(remoteUserMeshPoints)
+
+                this.renderText(clientId, meshColor, userMedia.usernameAnchorCoordinates,(textMesh) => {
+                    this.remoteUserNameGeometries.set(clientId, textMesh)
+                })
             }
         }, this)
+    }
+
+    /**
+     * @param clientId
+     * @param color
+     * @param anchorCoordinates2D
+     * @param referenceHandler handle the resource after getting it: e.g. save it, and update it later
+     * @private
+     */
+    private renderText(clientId: string,
+                     color: string,
+                     anchorCoordinates2D: Uint16Array,
+                     referenceHandler: (textMesh: Mesh<TextGeometry, MeshBasicMaterial>) => void) {
+        const loader = new FontLoader()
+        // fonts listed at https://threejs.org/docs/#api/en/geometries/TextGeometry
+        loader.load('fonts/ubuntu_mono_regular.json',
+            (responseFont => {
+                const textGeometry = new TextGeometry(clientId, {
+                    font: responseFont,
+                    size: 1500,
+                })
+                const textMaterial = new MeshBasicMaterial({color: color})
+                const textMesh = new Mesh(textGeometry, textMaterial)
+                textMesh.position.set(anchorCoordinates2D[0], anchorCoordinates2D[1], 0)
+                this.scene.add(textMesh)
+                referenceHandler(textMesh)
+            }),
+            (progressEvent) => { /* do nothing */ },
+            (errorEvent) => {
+                console.warn(`Text font didn't load, won't show clientId: ${clientId} on the render canvas.`)
+                console.warn({errorEvent})
+            }
+        )
     }
 
     /**

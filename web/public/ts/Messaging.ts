@@ -91,6 +91,7 @@ export default class Messaging {
                     normalizedLandmarks1D: faceMessage.coordinates,
                     faceMeshColor: faceMessage.color,
                     meshPointSize: faceMessage.meshPointSize,
+                    usernameAnchorCoordinates: faceMessage.usernameAnchorCoordinates
                 })
             })
 
@@ -130,8 +131,14 @@ export default class Messaging {
 
     publishToLobby = async (faceMeshCoordinates: Uint16Array,
                             faceMeshColor: string,
-                            meshPointSize: number): Promise<void> => {
-        const faceMessage = new FaceMessage(faceMeshCoordinates, faceMeshColor, meshPointSize)
+                            meshPointSize: number,
+                            usernameAnchorCoordinates: Uint16Array
+    ): Promise<void> => {
+        const faceMessage = new FaceMessage(faceMeshCoordinates,
+            faceMeshColor,
+            meshPointSize,
+            usernameAnchorCoordinates
+        )
         const int8Array = faceMessage.encode()
         await this.channel.publish("face", int8Array)
     }

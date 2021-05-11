@@ -19,7 +19,7 @@ const VideoRoomOptions = ({toggleOriginalVideoFeed, changeFaceMeshColor, changeF
     const validRegexPattern = /^#([0-9A-F]{3}){1,2}$/i;
 
     function changeColor() {
-        if (validRegexPattern.test(colorField)) {
+        if (validRegexPattern.test(colorField) && colorField.length === 7) {
             changeFaceMeshColor(colorField)
             setColorPickerIsOpen(false)
         } else {

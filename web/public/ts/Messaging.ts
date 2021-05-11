@@ -34,16 +34,16 @@ export default class Messaging {
         this.connect(username)
     }
 
-    setUpdateRemoteFaceHandler(callback: (remoteUserMedias: UserMedia) => void) {
+    setUpdateRemoteFaceHandler(callback: (remoteUserMedias: UserMedia) => void): void {
         this.updateRemoteFaceMeshs = callback
     }
 
-    connect = (username: string, connectedCallback?: () => void) => {
+    connect = (username: string, connectedCallback?: () => void): void => {
         const options: Ably.Types.ClientOptions = {
             key: process.env.NEXT_PUBLIC_ABLY_API_KEY,
             clientId: username,
             echoMessages: false,
-            useBinaryProtocol: false
+            useBinaryProtocol: true
         }
         this.ablyClient = new Realtime(options)
         this.ablyClient.connection.on('connected', () => {
@@ -56,7 +56,7 @@ export default class Messaging {
         });
     }
 
-    setUsername = async (username) => {
+    setUsername = async (username: string): Promise<void> => {
         this.username = username
         await this.close()
         this.connect(username, async () => {
@@ -85,10 +85,7 @@ export default class Messaging {
             })
 
             this.channel.subscribe("face", (message: Types.Message) => {
-                // TODO measure the received size
                 const faceMessage = FaceMessage.decode(message.data)
-                // const faceMessage = FaceMessage.fromFlatBuffer(message.data)
-
                 this.updateRemoteFaceMeshs({
                     clientId: message.clientId,
                     normalizedLandmarks1D: faceMessage.coordinates,
@@ -107,7 +104,7 @@ export default class Messaging {
             })
 
             this.channel.presence.subscribe('leave', (message => {
-                this.connectedClientIds = this.connectedClientIds.filter((value, index) => value != message.clientId)
+                this.connectedClientIds = this.connectedClientIds.filter((value) => value != message.clientId)
                 this.removeRemoteUser(message.clientId)
                 this.setCallState({
                     connection: "connected",
@@ -119,7 +116,7 @@ export default class Messaging {
         }
     }
 
-    joinLobbyPresence = async () => {
+    joinLobbyPresence = async (): Promise<void> => {
         await this.channel.presence.enter()
         const presenceMessages = await this.channel.presence.get()
         this.connectedClientIds = presenceMessages.map(presenceMessage => {
@@ -131,22 +128,15 @@ export default class Messaging {
         })
     }
 
-    publishToLobby = async (faceMeshCoordinates: Uint16Array, faceMeshColor: string, faceMeshSize: number) => {
-        // TODO measure/ save the received size
-        const faceMessage = new FaceMessage(faceMeshCoordinates, faceMeshColor, faceMeshSize)
-        const int8Array = faceMessage.encode() // Custom serialization
-        // const int8Array = faceMessage.encodeIntoFlatBuffer() // Flatbuffers
-
-        // Testing it briefly
-        const faceMessageDeserialized = FaceMessage.decode(int8Array)
-        // const deserializedFaceMessage = FaceMessage.fromFlatBuffer(int8Array)
-        // console.log({deserializedFaceMessage})
-
-        // TODO investigate how this gets serialized
+    publishToLobby = async (faceMeshCoordinates: Uint16Array,
+                            faceMeshColor: string,
+                            meshPointSize: number): Promise<void> => {
+        const faceMessage = new FaceMessage(faceMeshCoordinates, faceMeshColor, meshPointSize)
+        const int8Array = faceMessage.encode()
         await this.channel.publish("face", int8Array)
     }
 
-    leaveLobbyPresense = async () => {
+    leaveLobbyPresense = async (): Promise<void> => {
         await this.channel.presence.leave()
         this.connectedClientIds = this.connectedClientIds.filter((value) => value !== this.username)
         this.setCallState({

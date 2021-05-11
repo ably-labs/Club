@@ -43,6 +43,7 @@ export default class VideoRenderer {
     private cameraHeight: number;
     private localFaceMeshPointSize: number;
     private scaleFactor: number;
+    private setLoadingScreenCallback: (boolean) => void
 
     constructor(videoElement: HTMLVideoElement,
                 outputElement: HTMLDivElement,
@@ -63,6 +64,7 @@ export default class VideoRenderer {
         this.localFaceMeshPointSize = 1
         this.scaleFactor = 0.3
         this.faceMeshColor = videoRendererOptions.faceMeshColor
+        this.setLoadingScreenCallback = videoRendererOptions.stopLoadingScreenCallback
 
         this.stats = new Stats()
         this.stats.dom.style.cssText = "position:relative;top:0;left:0;cursor:pointer;opacity:0.9;z-index:10000"
@@ -89,10 +91,13 @@ export default class VideoRenderer {
 
         this.holisticCalculator = new MediapipeHolisticCalculator(this.updateScene);
         // https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/readyState
-        if (videoElement.readyState != 4) { 
+        if (videoElement.readyState != 4) {
             videoElement.addEventListener('canplay', async () => {
                 await this.start()
             }, {once: true})
+            // Render an empty canvas temporarily, to lay out the screen nicely.
+            this.renderer.render(this.scene, this.camera);
+            window.requestAnimationFrame(() => { /* do nothing extra */ })
         } else {
             this.start()
         }
@@ -100,27 +105,27 @@ export default class VideoRenderer {
         this.setupKeyControls()
     }
 
-    updateUsername = (username: string) => {
-        console.error("TODO: render the username")
+    updateUsername = (username: string): void => {
+        console.warn(`Not implemented: render the ${username} username`)
     }
 
-    scheduleFaceDataPublishing() {
+    scheduleFaceDataPublishing(): void {
         window.clearInterval(this.periodicFaceData)
         const intervalInMilliseconds = 1000 / this.uploadFramesPerSecond
         this.periodicFaceData = window.setInterval(async () => {
             if (this.latestLandmarks) {
-                await this.messaging.publishToLobby(this.latestLandmarks, 
+                await this.messaging.publishToLobby(this.latestLandmarks,
                     this.faceMeshColor,
                     this.localFaceMeshPointSize);
             }
         }, intervalInMilliseconds)
     }
 
-    cancelFaceDataPublishing() {
+    cancelFaceDataPublishing(): void {
         window.clearInterval(this.periodicFaceData)
     }
 
-    start = async () => {
+    start = async (): Promise<void> => {
         this.isRunning = true
         this.stats.begin()
         await this.step()
@@ -129,7 +134,7 @@ export default class VideoRenderer {
     /**
      * Call this to start the rendering
      */
-    step = async () => {
+    step = async (): Promise<void> => {
         if (this.isRunning) {
             this.isRunning = true
             await this.holisticCalculator.send(this.videoElement)
@@ -140,7 +145,7 @@ export default class VideoRenderer {
     /**
      * Call this to stop rendering, aka. clear the previously requested frame
      */
-    stopRender() {
+    stopRender(): void {
         this.isRunning = false
         if (this.renderId) {
             window.cancelAnimationFrame(this.renderId)
@@ -193,7 +198,7 @@ export default class VideoRenderer {
                 if (xYZIndex === 0) {
                     this.scaledCoords[i] = (normalizedLandmarks[meshCoordinateNumber].x * xMultiplier) + xShift
                 } else if (xYZIndex === 1) {
-                    this.scaledCoords[i] =  -(normalizedLandmarks[meshCoordinateNumber].y) * yMultiplier + yShift
+                    this.scaledCoords[i] = -(normalizedLandmarks[meshCoordinateNumber].y) * yMultiplier + yShift
                 } else {
                     this.scaledCoords[i] = (normalizedLandmarks[meshCoordinateNumber].z + zShift) * xMultiplier
                 }
@@ -250,6 +255,7 @@ export default class VideoRenderer {
             return
         }
         if (!this.meshPoints) {
+            this.setLoadingScreenCallback(false)
             const material = new PointsMaterial({color: this.faceMeshColor, size: this.localFaceMeshPointSize});
             const geometry = new BufferGeometry()
             this.meshPoints = new Points(geometry, material)
@@ -282,9 +288,11 @@ export default class VideoRenderer {
 
     removeRemoteUser = (clientId: string): void => {
         this.remoteUserMedias.delete(clientId)
-        const points = this.remoteUserMeshPoints.get(clientId)
-        points.parent.remove(points)
-        this.remoteUserMeshPoints.delete(clientId)
+        if (this.remoteUserMeshPoints.has(clientId)) {
+            const points = this.remoteUserMeshPoints.get(clientId)
+            points.parent.remove(points)
+            this.remoteUserMeshPoints.delete(clientId)
+        }
     }
 
     private remoteUserMedias = new Map<string, UserMedia>()
@@ -380,5 +388,6 @@ export default class VideoRenderer {
 }
 
 export interface VideoRendererOptions {
-    faceMeshColor: string
+    faceMeshColor: string,
+    stopLoadingScreenCallback: (boolean) => void
 }

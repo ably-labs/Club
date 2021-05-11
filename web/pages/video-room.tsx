@@ -6,12 +6,13 @@ import CallStateDisplay from "../public/ts/CallStateDisplay";
 import EditUsernameModal from "../public/ts/EditUsernameModal";
 import {generateRandomUsername} from "../public/ts/names";
 import {BrowserView} from 'react-device-detect';
-import {FaEdit, FaPause, FaPhone, FaPhoneSlash, FaPlay} from "react-icons/fa";
+import {FaEdit, FaPause, FaPhone, FaPhoneSlash, FaPlay, FaSpinner} from "react-icons/fa";
 import VideoRoomOptions from "../public/ts/ui/videoRoomOptions";
 import Layout from "../components/layout";
 import {pickRandomTailwindColor} from "../public/ts/colors";
 
 export default function VideoRoom(): ReactElement {
+    const [loading, setLoading] = useState(true)
     const [username, setUsername] = useState('')
     const [callState, setCallState] = useState<CallState>({
         connection: "disconnected",
@@ -22,7 +23,7 @@ export default function VideoRoom(): ReactElement {
     const videoRendererRef = useRef<VideoRenderer>(null);
     const messagingRef = useRef<Messaging>(null);
     const fpsCounterRef = useRef<HTMLDivElement>(null);
-    const [callIsConnected, setCallButtonEnabled] = useState(true);
+    const [callIsConnected, setCallIsConnected] = useState(false);
     const [color, setColor] = useState(null)
 
     const DEFAULT_ORIGINAL_VIDEO_WIDTH = 0
@@ -30,32 +31,23 @@ export default function VideoRoom(): ReactElement {
     const [originalVideoWidth, setOriginalVideoWidth] = useState(DEFAULT_ORIGINAL_VIDEO_WIDTH)
     const [trackingEnabled, setTrackingEnabled] = useState(true)
 
-    const loadCameraFeed = async (videoElement: HTMLVideoElement): Promise<HTMLVideoElement> => {
-        videoElement.srcObject = await navigator.mediaDevices.getUserMedia({
-            video: true
-        });
-        return videoElement
-    }
-
     useEffect(() => {
-        setCallButtonEnabled(false)
-        const username = generateRandomUsername()
-        setUsername(username)
+        const randomUsername = generateRandomUsername()
         const randomColor = pickRandomTailwindColor()
+        setUsername(randomUsername)
         setColor(randomColor.name)
-        messagingRef.current = new Messaging(username, setCallState);
+        messagingRef.current = new Messaging(randomUsername, setCallState);
         videoRendererRef.current = new VideoRenderer(videoRef.current,
             renderOutputRef.current,
             fpsCounterRef.current,
             messagingRef.current,
-            {faceMeshColor: randomColor.hexCode},
-            0.5
+            {faceMeshColor: randomColor.hexCode, stopLoadingScreenCallback: setLoading},
+            2
         );
         messagingRef.current.setUpdateRemoteFaceHandler(videoRendererRef.current.updateRemoteUserMedia);
         messagingRef.current.setRemoveRemoteUserHandler(videoRendererRef.current.removeRemoteUser);
         (async () => {
-            videoRendererRef.current.videoElement = await loadCameraFeed(videoRef.current);
-            setCallButtonEnabled(true)
+            videoRef.current.srcObject = await navigator.mediaDevices.getUserMedia({video: true});
             await messagingRef.current.connectToLobby()
         })();
 
@@ -65,15 +57,15 @@ export default function VideoRoom(): ReactElement {
     }, []);
 
     const joinCallHandler = async () => {
-        setCallButtonEnabled(false);
         videoRendererRef.current.scheduleFaceDataPublishing()
         await messagingRef.current.joinLobbyPresence()
+        setCallIsConnected(true);
     };
 
     const hangUpHandler = async () => {
-        setCallButtonEnabled(true);
         videoRendererRef.current.cancelFaceDataPublishing()
         await messagingRef.current.leaveLobbyPresense()
+        setCallIsConnected(false);
     };
 
     const toggleTracking = async () => {
@@ -95,17 +87,17 @@ export default function VideoRoom(): ReactElement {
         setEditUsernameModalEnabled(!editUsernameModalEnabled)
     }
 
-    const editUsernameHandler = async (username?: string) => {
+    const editUsernameHandler = async (newUsername?: string) => {
         setEditUsernameModalEnabled(false)
-        if (!username) {
+        if (!newUsername) {
             return
         }
-        setUsername(username)
-        videoRendererRef.current.updateUsername(username)
+        setUsername(newUsername)
+        videoRendererRef.current.updateUsername(newUsername)
         const randomColor = pickRandomTailwindColor()
         setColor(randomColor.name)
         videoRendererRef.current.changeLocalFaceMeshColor(randomColor.hexCode)
-        await messagingRef.current.setUsername(username)
+        await messagingRef.current.setUsername(newUsername)
         // TODO save to local storage, and re-read on startup everytime.
     }
 
@@ -156,22 +148,26 @@ export default function VideoRoom(): ReactElement {
                             ref={videoRef}
                         />
                     </div>
-
                     <div ref={renderOutputRef} className={"flex justify-center"}/>
                     <div className={"flex justify-center my-2"}>
                         <div className={"inline-flex p-4 bg-indigo-100 rounded-full"}>
                             {(callIsConnected) ?
                                 <button
+                                    className={"bg-red-500 hover:bg-red-700 text-white mx-2 font-bold py-4 px-4 rounded-full disabled:bg-gray-500 disabled:cursor-not-allowed"}
+                                    onClick={hangUpHandler} disabled={!callIsConnected}>
+                                    <FaPhoneSlash/>
+                                </button> :
+                                (loading) ? <button
+                                    className={" bg-green-500 hover:bg-green-700 text-white mx-2 font-bold py-2 px-4 rounded-full disabled:bg-gray-500 disabled:cursor-not-allowed"}
+                                    disabled={true}>
+                                    <FaSpinner className={"animate-spin"}/>
+                                </button> : <button
                                     aria-disabled={!callIsConnected}
                                     className={"bg-green-500 hover:bg-green-700 text-white mx-2 font-bold py-2 px-4 rounded-full disabled:bg-gray-500 disabled:cursor-not-allowed"}
-                                    onClick={joinCallHandler} disabled={!callIsConnected}>
+                                    onClick={joinCallHandler} disabled={callIsConnected}>
                                     <FaPhone/>
-                                </button> :
-                                <button
-                                    className={"bg-red-500 hover:bg-red-700 text-white mx-2 font-bold py-4 px-4 rounded-full disabled:bg-gray-500 disabled:cursor-not-allowed"}
-                                    onClick={hangUpHandler} disabled={callIsConnected}>
-                                    <FaPhoneSlash/>
                                 </button>
+
                             }
                             <button
                                 className={"bg-indigo-500 hover:bg-indigo-700 text-white mx-2 font-bold py-4 px-4 rounded-full disabled:bg-gray-500 disabled:cursor-not-allowed"}

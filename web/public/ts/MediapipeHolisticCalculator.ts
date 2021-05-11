@@ -4,8 +4,9 @@ export default class MediapipeHolisticCalculator {
     /**
      * Uses MediaPipe FaceMesh library to calculate the face mesh from input image (through a video html element)
      *
-     * @param resultCallback - Takes 1 argument: The face mesh, Float32Array containing the 1D representation of the face
-     *  mesh coordinates. Used to trigger further action after Three.js-friendly 1D representation, such as add to scene,
+     * @param resultCallback - Takes 1 argument: The face mesh, Float32Array containing
+     * the 1D representation of the face mesh coordinates. Used to trigger further
+     * action after Three.js-friendly 1D representation, such as add to scene,
      *  and render.
      * @param outputWidth - The outputHeight of the camera section. Used rescale the face mesh to fit the render canvas.
      * @param outputHeight - The outputWidth of the camera section. Similar to outputWidth.
@@ -40,7 +41,7 @@ export default class MediapipeHolisticCalculator {
         return await this.holistic.send({image: videoElement})
     }
 
-    close = () => {
+    close = (): void => {
         this.holistic.close()
     }
 }

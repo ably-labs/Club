@@ -49,6 +49,7 @@ export default function VideoRoom(): ReactElement {
         messagingRef.current.setUpdateRemoteFaceHandler(videoRendererRef.current.updateRemoteUserMedia);
         messagingRef.current.setRemoveRemoteUserHandler(videoRendererRef.current.removeRemoteUser);
         (async () => {
+            await messagingRef.current.initialize()
             videoRef.current.srcObject = await navigator.mediaDevices.getUserMedia({video: true});
             await messagingRef.current.connectToLobby()
         })();

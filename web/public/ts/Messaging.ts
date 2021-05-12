@@ -10,6 +10,8 @@ export interface CallState {
     currentUsers: string[]
 }
 
+const CLUB2D_API_URL = process.env.NEXT_PUBLIC_CLUB2D_API_URL
+
 /**
  * Uses Ably to send data across all clients.
  */
@@ -22,16 +24,44 @@ export default class Messaging {
     private username: string;
     private updateRemoteFaceMeshs: (remoteUserMedia: UserMedia) => void
     private removeRemoteUser: (clientId: string) => void
+    private token: string;
 
     constructor(username: string,
                 setCallState: (value: (((prevState: CallState) => CallState) | CallState)) => void,
     ) {
         this.username = username
         this.setCallState = setCallState
-        if (!process.env.NEXT_PUBLIC_ABLY_API_KEY) {
-            console.error(`API key is missing, it is ${process.env.NEXT_PUBLIC_ABLY_API_KEY}.`)
+    }
+
+    initialize = async (): Promise<void> => {
+        this.token = await Messaging.requestToken(this.username)
+        this.connect(this.username)
+    }
+
+    private static requestToken = async (clientId: string): Promise<string> => {
+        const queryParams = new URLSearchParams([["clientId", clientId]]).toString()
+        if (!CLUB2D_API_URL) {
+            console.error(`CLUB2D_API_URL is ${CLUB2D_API_URL}, that's going to be a problem.`)
         }
-        this.connect(username)
+        const request = `${CLUB2D_API_URL}/requestToken?` + queryParams
+        try {
+            const response = await fetch(request, {
+                method: "post",
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            })
+            if (response.status === 200) {
+                console.log({response})
+                // TODO parse response correctly
+                return "Update token here"
+            } else {
+                console.error(`Failed to make request: ${request}, got ${response.status}, ${response.body}.`)
+            }
+        } catch (e) {
+            console.error(`Failed to make request: ${request}, failed with ${e}.`)
+        }
     }
 
     setUpdateRemoteFaceHandler(callback: (remoteUserMedias: UserMedia) => void): void {
@@ -40,7 +70,7 @@ export default class Messaging {
 
     connect = (username: string, connectedCallback?: () => void): void => {
         const options: Ably.Types.ClientOptions = {
-            key: process.env.NEXT_PUBLIC_ABLY_API_KEY,
+            key: this.token,
             clientId: username,
             echoMessages: false,
             useBinaryProtocol: true

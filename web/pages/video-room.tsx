@@ -168,10 +168,17 @@ export default function VideoRoom(): ReactElement {
                                 </button>
 
                             }
-                            <button
-                                className={"bg-indigo-500 hover:bg-indigo-700 text-white mx-2 font-bold py-4 px-4 rounded-full disabled:bg-gray-500 disabled:cursor-not-allowed"}
-                                onClick={toggleTracking}>{trackingEnabled ? <FaPause/> : <FaPlay/>}
-                            </button>
+                            {
+                                (loading) ? <button
+                                    className={" bg-green-500 hover:bg-green-700 text-white mx-2 font-bold py-2 px-4 rounded-full disabled:bg-gray-500 disabled:cursor-not-allowed"}
+                                    disabled={true}>
+                                    <FaSpinner className={"animate-spin"}/>
+                                </button> : <button
+                                    className={"bg-indigo-500 hover:bg-indigo-700 text-white mx-2 font-bold py-4 px-4 rounded-full disabled:bg-gray-500 disabled:cursor-not-allowed"}
+                                    onClick={toggleTracking}>{trackingEnabled ? <FaPause/> : <FaPlay/>}
+                                </button>
+                            }
+
                             <VideoRoomOptions toggleOriginalVideoFeed={toggleOriginalVideoFeed}
                                               changeFaceMeshColor={changeFaceMeshColor}
                                               changeFaceMeshSize={changeFaceMeshSize}/>

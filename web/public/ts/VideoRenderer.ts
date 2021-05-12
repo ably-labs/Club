@@ -1,11 +1,16 @@
 import {
     BufferAttribute,
     BufferGeometry,
-    Camera, Color, FontLoader, Material, Mesh, MeshBasicMaterial, Object3D,
+    Camera,
+    Color,
+    FontLoader,
+    Mesh,
+    MeshBasicMaterial,
     OrthographicCamera,
     Points,
     PointsMaterial,
-    Scene, TextGeometry,
+    Scene,
+    TextGeometry,
     WebGLRenderer
 } from "three";
 import MediapipeHolisticCalculator from "./MediapipeHolisticCalculator";
@@ -39,13 +44,13 @@ export default class VideoRenderer {
     private latestLandmarks: Uint16Array | null = null;
     private periodicFaceData: number;
     private faceMeshColor: string;
-    private uploadFramesPerSecond: number;
-    private cameraWidth: number;
-    private cameraHeight: number;
+    private readonly uploadFramesPerSecond: number;
+    private readonly cameraWidth: number;
+    private readonly cameraHeight: number;
     private localFaceMeshPointSize: number;
     private usernameAnchorCoordinates: Uint16Array
-    private scaleFactor: number;
-    private setLoadingScreenCallback: (boolean) => void
+    private readonly scaleFactor: number;
+    private readonly setLoadingScreenCallback: (boolean) => void
     private username: string;
 
     constructor(videoElement: HTMLVideoElement,

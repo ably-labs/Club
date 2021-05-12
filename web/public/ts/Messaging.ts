@@ -160,7 +160,7 @@ export default class Messaging {
         })
     }
 
-    async close() {
+    async close(): Promise<void> {
         this.ablyClient.close()
     }
 
@@ -168,7 +168,7 @@ export default class Messaging {
      *
      * @param removeRemoteUser
      */
-    setRemoveRemoteUserHandler(removeRemoteUser: (clientId: string) => void) {
+    setRemoveRemoteUserHandler(removeRemoteUser: (clientId: string) => void): void {
         this.removeRemoteUser = removeRemoteUser
     }
 }

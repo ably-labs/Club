@@ -10,7 +10,8 @@ export interface CallState {
     currentUsers: string[]
 }
 
-const CLUB2D_API_URL = process.env.NEXT_PUBLIC_CLUB2D_API_URL
+// const CLUB2D_API_URL = process.env.NEXT_PUBLIC_CLUB2D_API_URL
+const CLUB2D_API_URL = "http://localhost:8000/club2d-app/europe-west2/app/"
 
 /**
  * Uses Ably to send data across all clients.
@@ -24,7 +25,6 @@ export default class Messaging {
     private username: string;
     private updateRemoteFaceMeshs: (remoteUserMedia: UserMedia) => void
     private removeRemoteUser: (clientId: string) => void
-    private token: string;
 
     constructor(username: string,
                 setCallState: (value: (((prevState: CallState) => CallState) | CallState)) => void,
@@ -33,17 +33,41 @@ export default class Messaging {
         this.setCallState = setCallState
     }
 
-    initialize = async (): Promise<void> => {
-        this.token = await Messaging.requestToken(this.username)
-        this.connect(this.username)
+    connect = async (username: string): Promise<void> => {
+        try {
+            const tokenRequest = await this.requestTokenRequest(username)
+            const options: Ably.Types.ClientOptions = {
+                clientId: username,
+                echoMessages: false,
+                useBinaryProtocol: true,
+                token: tokenRequest,
+                authCallback: async (data, callback) => {
+                    const newTokenRequest = await this.requestTokenRequest(username)
+                    const tokenDetails: Types.TokenDetails = await this.ablyClient.auth.requestToken({clientId: data.clientId}, newTokenRequest)
+                    callback(null, tokenDetails)
+                }
+            }
+            this.ablyClient = new Realtime(options)
+        } catch (e) {
+            console.error(e)
+            throw new Error("Ably failed.")
+        }
+
+        this.ablyClient.connection.on('connected', () => {
+            console.log("Connected to Ably.")
+        })
+
+        this.ablyClient.connection.on('closed', () => {
+            console.log("Disconnected from Ably.")
+        });
     }
 
-    private static requestToken = async (clientId: string): Promise<string> => {
+    private requestTokenRequest = async (clientId: string): Promise<Types.TokenRequest> => {
         const queryParams = new URLSearchParams([["clientId", clientId]]).toString()
         if (!CLUB2D_API_URL) {
-            console.error(`CLUB2D_API_URL is ${CLUB2D_API_URL}, that's going to be a problem.`)
+            console.error(`CLUB2D_API_URL is ${CLUB2D_API_URL}, it needs to be specified as an environment variable.`)
         }
-        const request = `${CLUB2D_API_URL}/requestToken?` + queryParams
+        const request = `${CLUB2D_API_URL}/createToken?` + queryParams
         try {
             const response = await fetch(request, {
                 method: "post",
@@ -53,9 +77,7 @@ export default class Messaging {
                 }
             })
             if (response.status === 200) {
-                console.log({response})
-                // TODO parse response correctly
-                return "Update token here"
+                return await response.json()
             } else {
                 console.error(`Failed to make request: ${request}, got ${response.status}, ${response.body}.`)
             }
@@ -68,30 +90,10 @@ export default class Messaging {
         this.updateRemoteFaceMeshs = callback
     }
 
-    connect = (username: string, connectedCallback?: () => void): void => {
-        const options: Ably.Types.ClientOptions = {
-            key: this.token,
-            clientId: username,
-            echoMessages: false,
-            useBinaryProtocol: true
-        }
-        this.ablyClient = new Realtime(options)
-        this.ablyClient.connection.on('connected', () => {
-            console.log("Connected to Ably.")
-            if (connectedCallback) connectedCallback();
-        })
-
-        this.ablyClient.connection.on('closed', () => {
-            console.log("Disconnected from Ably.")
-        });
-    }
-
     setUsername = async (username: string): Promise<void> => {
         this.username = username
         await this.close()
-        this.connect(username, async () => {
-            await this.connectToLobby()
-        })
+        this.connect(username)
         // TODO Use UUID clientId and change the name of the user. And store usernames in an object
     }
 

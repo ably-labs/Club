@@ -1,8 +1,9 @@
 import Head from 'next/head';
 import Link from 'next/link';
 import {FaGithub} from "react-icons/fa";
+import React from 'react';
 
-export default function Home() {
+const Home = () => {
     const createLink = (text: string, href: string) => {
         return <a href={href} className={"hover:underline"}>{text}</a>
     }
@@ -42,3 +43,5 @@ export default function Home() {
         </div>
     );
 }
+
+export default Home;

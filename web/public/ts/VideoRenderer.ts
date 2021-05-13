@@ -68,6 +68,7 @@ export default class VideoRenderer {
         this.fpsOutput = fpsOutput;
         this.messaging = messaging;
         this.username = username;
+        // remove rendererWidth/ height
         this.rendererWidth = rendererWidth
         this.rendererHeight = rendererHeight
         this.uploadFramesPerSecond = uploadFramesPerSecond
@@ -257,7 +258,7 @@ export default class VideoRenderer {
         right: 50,
     }
     // TODO handle physical edge cases. But what is the width of the camera box
-    moveFace = (direction: Direction, quantity: number): void => {
+    moveLocalFace = (direction: Direction, quantity: number): void => {
         switch (direction) {
             case Direction.Left:
                 if (this.offset.right - quantity >= 0) {
@@ -466,19 +467,19 @@ export default class VideoRenderer {
             }
 
             if (this.keysPressed["ArrowLeft"] || this.keysPressed["a"]) {
-                this.moveFace(Direction.Left, moveQuantity)
+                this.moveLocalFace(Direction.Left, moveQuantity)
             }
 
             if (this.keysPressed["ArrowDown"] || this.keysPressed["s"]) {
-                this.moveFace(Direction.Down, moveQuantity)
+                this.moveLocalFace(Direction.Down, moveQuantity)
             }
 
             if (this.keysPressed["ArrowRight"] || this.keysPressed["d"]) {
-                this.moveFace(Direction.Right, moveQuantity)
+                this.moveLocalFace(Direction.Right, moveQuantity)
             }
 
             if (this.keysPressed["ArrowUp"] || this.keysPressed["w"]) {
-                this.moveFace(Direction.Up, moveQuantity)
+                this.moveLocalFace(Direction.Up, moveQuantity)
             }
         });
     }

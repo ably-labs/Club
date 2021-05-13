@@ -36,6 +36,7 @@ export default function VideoRoom(): ReactElement {
         const randomColor = pickRandomTailwindColor()
         setUsername(randomUsername)
         setColor(randomColor.name)
+
         messagingRef.current = new Messaging(randomUsername, setCallState);
         const frameRate = parseInt(process.env.NEXT_PUBLIC_ABLY_UPLOAD_FRAME_RATE)
         videoRendererRef.current = new VideoRenderer(videoRef.current,

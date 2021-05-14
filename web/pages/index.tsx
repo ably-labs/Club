@@ -14,14 +14,14 @@ const Home = (): React.ReactElement => {
                 <title>Club2D</title>
                 <link rel='icon' href='/favicon.ico'/>
             </Head>
-            <div className={"flex-grow flex flex-col justify-center"}>
-                <p className={"block text-4xl font-bold"}>Club2D</p>
-                <p className={"block text-2xl"}>anonymous, yet in the same room.</p>
-                <Link href='/video-room/'>
-                    <a className={"hover:underline text-blue-600 text-lg"}>enter.</a>
-                </Link>
-                {/*<div className={"text-sm"}>(support for rooms coming soon)</div>*/}
-            </div>
+                <div className={"flex-grow flex flex-col justify-center"}>
+            <Link href='/video-room/'>
+                    <a className={"hover:underline block text-4xl text-blue-500 font-bold"}>Club2D</a>
+            </Link>
+                    <span className={"block text-2xl text-grey-600"}><span className={"italic"}>anonymous</span> video
+                        calls.</span>
+                    {/*<div className={"text-sm"}>(support for rooms coming soon)</div>*/}
+                </div>
 
             <div className={"flex-shrink m-4 flex-col self-center"}>
                 <div className={""}>
@@ -33,8 +33,10 @@ const Home = (): React.ReactElement => {
                         {createLink("Next.js", "https://nextjs.org/")}{", "}
                         {createLink("React", "https://reactjs.org/")}{", "}
                         {/*{createLink("Pion", "https://pion.ly/")}{", "}*/}
-                        {createLink("Cloudflare Pages", "https://cloudflare.com/")}{". "}
-                        glued together by <a href={"https://orth.uk"} className={"hover:underline text-blue-700"}>{"Ben Butterworth"}</a>
+                        {createLink("Cloudflare Pages", "https://cloudflare.com/")}{", "}
+                        {createLink("Firebase Functions", "https://firebase.google.com/docs/functions/")}{", "}
+                        glued together by <a href={"https://orth.uk"}
+                                             className={"hover:underline text-blue-700"}>{"Ben Butterworth"}</a>
                     </p>
                 </div>
                 <a className={"hover:opacity-20 flex justify-center my-5"} href={"https://github.com/ben-xD/club/"}>

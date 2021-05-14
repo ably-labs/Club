@@ -259,24 +259,25 @@ export default class VideoRenderer {
     }
     // TODO handle physical edge cases. But what is the width of the camera box
     moveLocalFace = (direction: Direction, quantity: number): void => {
+        const outOfBoundsMultiplier = 1.1
         switch (direction) {
             case Direction.Left:
-                if (this.offset.right - quantity >= 0) {
+                if (this.offset.right - quantity >= 0 - this.cameraWidth * 0.1) {
                     this.offset.right -= quantity
                 }
                 break
             case Direction.Down:
-                if (this.offset.up - quantity >= 0) {
+                if (this.offset.up - quantity >= 0 - this.cameraHeight * 0.1) {
                     this.offset.up -= quantity
                 }
                 break
             case Direction.Right:
-                if (this.offset.right + quantity + this.cameraWidth * this.scaleFactor <= this.cameraWidth) {
+                if (this.offset.right + quantity + this.cameraWidth * this.scaleFactor <= this.cameraWidth * outOfBoundsMultiplier) {
                     this.offset.right += quantity
                 }
                 break
             case Direction.Up:
-                if (this.offset.up + quantity + this.cameraHeight * this.scaleFactor <= this.cameraHeight) {
+                if (this.offset.up + quantity + this.cameraHeight * this.scaleFactor <= this.cameraHeight * outOfBoundsMultiplier) {
                     this.offset.up += quantity
                 }
                 break
@@ -471,19 +472,19 @@ export default class VideoRenderer {
                 moveQuantity = 10000
             }
 
-            if (this.keysPressed["ArrowLeft"] || this.keysPressed["a"]) {
+            if (this.keysPressed["ArrowLeft"] || this.keysPressed["a"] || this.keysPressed["A"]) {
                 this.moveLocalFace(Direction.Left, moveQuantity)
             }
 
-            if (this.keysPressed["ArrowDown"] || this.keysPressed["s"]) {
+            if (this.keysPressed["ArrowDown"] || this.keysPressed["s"] || this.keysPressed["S"]) {
                 this.moveLocalFace(Direction.Down, moveQuantity)
             }
 
-            if (this.keysPressed["ArrowRight"] || this.keysPressed["d"]) {
+            if (this.keysPressed["ArrowRight"] || this.keysPressed["d"] || this.keysPressed["D"]) {
                 this.moveLocalFace(Direction.Right, moveQuantity)
             }
 
-            if (this.keysPressed["ArrowUp"] || this.keysPressed["w"]) {
+            if (this.keysPressed["ArrowUp"] || this.keysPressed["w"] || this.keysPressed["W"]) {
                 this.moveLocalFace(Direction.Up, moveQuantity)
             }
         });

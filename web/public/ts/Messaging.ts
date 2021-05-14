@@ -1,4 +1,4 @@
-import Ably, {Realtime, Rest} from 'ably/promises'
+import {Realtime} from 'ably/promises'
 import {Types} from "ably";
 import UserMedia from "./models/UserMedia";
 import FaceMessage from "./models/FaceMessage";
@@ -9,11 +9,13 @@ export type ConnectionState = "connected" | "disconnected"
 
 export type User = {
     clientId: string,
-    username: string
+    username: string,
+    color: string
 }
 
 interface PresenceData {
-    username: string
+    username: string,
+    color: string
 }
 
 export interface CallState {
@@ -34,11 +36,14 @@ export default class Messaging {
     private username: string;
     private updateRemoteFaceMeshs: (remoteUserMedia: UserMedia) => void
     private removeRemoteUser: (clientId: ClientId) => void
+    private color: string;
 
     constructor(username: string,
+                color: string,
                 setCallState: (value: (((prevState: CallState) => CallState) | CallState)) => void,
     ) {
         this.username = username
+        this.color = color
         this.setCallState = setCallState
     }
 
@@ -80,9 +85,12 @@ export default class Messaging {
         this.updateRemoteFaceMeshs = callback
     }
 
-    setUsername = async (username: string): Promise<void> => {
+    setUsername = (username: string): void => {
         this.username = username
-        await this.updatePresence(username)
+    }
+
+    setColor = (color: string): void => {
+        this.color = color
     }
 
     private addEventHandlers = () => {
@@ -107,10 +115,10 @@ export default class Messaging {
             })
         })
 
-        this.channel.presence.subscribe("enter", (member) => {
-            const {username} = member.data
-            console.log(`User entered: ${username} with id${member.clientId}`)
-            this.addUser(member)
+        this.channel.presence.subscribe("enter", (presenceMessage) => {
+            const {username} = presenceMessage.data
+            console.log(`User entered: ${username} with id${presenceMessage.clientId}`)
+            this.addUser(presenceMessage)
         })
 
         this.channel.presence.subscribe('present', (presenceMessage) => {
@@ -123,7 +131,11 @@ export default class Messaging {
     }
 
     joinLobbyPresence = async (): Promise<void> => {
-        await this.channel.presence.enter({username: this.username})
+        const presenceMessage: PresenceData = {
+            username: this.username,
+            color: this.color
+        }
+        await this.channel.presence.enter(presenceMessage)
     }
 
     publishToLobby = async (faceMeshCoordinates: Uint16Array,
@@ -166,18 +178,19 @@ export default class Messaging {
         this.removeRemoteUser = removeRemoteUser
     }
 
-    private updatePresence = async (username: string) => {
+    updatePresence = async () => {
         const presenceUpdate: PresenceData = {
-            username
+            username: this.username,
+            color: this.color
         }
         await this.channel.presence.update(presenceUpdate)
     }
 
     private addUser(presenceMessage: Types.PresenceMessage) {
         const clientId = presenceMessage.clientId
-        const {username} = presenceMessage.data
+        const {username, color} = presenceMessage.data
 
-        this.connectedClients.set(clientId, {username, clientId})
+        this.connectedClients.set(clientId, {username, clientId, color})
         this.setCallState({
             connection: "connected",
             currentUsers: this.connectedClients

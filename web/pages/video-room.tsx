@@ -37,7 +37,7 @@ export default function VideoRoom(): ReactElement {
         setUsername(randomUsername)
         setColor(randomColor.name)
 
-        messagingRef.current = new Messaging(randomUsername, setCallState);
+        messagingRef.current = new Messaging(randomUsername, randomColor.hexCode, setCallState);
         const frameRate = parseInt(process.env.NEXT_PUBLIC_ABLY_UPLOAD_FRAME_RATE)
         videoRendererRef.current = new VideoRenderer(videoRef.current,
             renderOutputRef.current,
@@ -98,7 +98,8 @@ export default function VideoRoom(): ReactElement {
         }
         setUsername(newUsername)
         videoRendererRef.current.updateUsername(newUsername)
-        await messagingRef.current.setUsername(newUsername)
+        messagingRef.current.setUsername(newUsername)
+        await messagingRef.current.updatePresence()
         // TODO save to local storage, and re-read on startup everytime.
     }
 
@@ -106,7 +107,9 @@ export default function VideoRoom(): ReactElement {
         setEditUsernameModalEnabled(false)
     }
 
-    const changeFaceMeshColor = (newColor: string) => {
+    const changeFaceMeshColor = async (newColor: string) => {
+        messagingRef.current.setColor(newColor)
+        await messagingRef.current.updatePresence()
         videoRendererRef.current.changeLocalFaceMeshColor(newColor)
     }
 
@@ -114,7 +117,6 @@ export default function VideoRoom(): ReactElement {
         videoRendererRef.current.changeLocalFaceMeshSize(newSize)
     }
 
-    // TODO add text overlay to say "press the green button".
     return (
         <Layout>
             <div className='container max-w-none'>
@@ -187,6 +189,21 @@ export default function VideoRoom(): ReactElement {
                         </div>
                     </div>
                     {CallStateDisplay({callState})}
+                    <div className={"mt-6"}>
+                        <span className={"text-2xl"}>Controls</span>
+                        <ul>
+                            <li><span className={"font-bold"}>Movement: </span>You can use AWSD or arrow keys to move around. Hold shift while moving to move faster.</li>
+                            <li><span className={"font-bold"}>Face shape: </span>You can change your face mesh color and the size of the points.</li>
+                        </ul>
+                    </div>
+                    <div className={"mt-6"}>
+                        <p className={"text-2xl"}>Mobile Support</p>
+                        <span>{"Not currently supported because the Mediapipe library which provides the face mesh doesn't run outside of Desktop Chrome/ Brave."}</span>
+                    </div>
+                    <div className={"mt-6"}>
+                        <p className={"text-2xl"}>Memory leak alert</p>
+                        <span>There is a memory leak in this app, so it gradually takes up 2GB of memory over the course of 10 minutes, and then freezes the app. This is due to MediaPipe not cleaning up its arrays in WASM, see this <a className={"hover:underline text-blue-600"} href={"https://github.com/google/mediapipe/issues/1937"}>GitHub issue</a> for more.</span>
+                    </div>
                 </div>
             </div>
         </Layout>

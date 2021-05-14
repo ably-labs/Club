@@ -12,15 +12,15 @@ const CallStateDisplay = ({callState}: Props): React.ReactElement => {
     function renderCurrentUserList(currentUsers: Map<ClientId, User>): React.ReactElement[] {
         const list = []
         currentUsers.forEach((user) => {
-            list.push(<li key={user.clientId}>{user.username}</li>)
+            list.push(<li className={""} style={{color: user.color}} key={user.clientId}>{user.username}</li>)
         })
         return list
     }
 
     if (callState.connection === "connected") {
-        return <div>
-            <h2>{callState.currentUsers.size}
-                { callState.currentUsers.size === 1 ? " user" : " users"} in the room</h2>
+        return <div className={"text-center"}>
+            <span className={"text-2xl text-indigo-800"}>{callState.currentUsers.size}</span>
+            <span className={"text-2xl text-indigo-600"}>{ callState.currentUsers.size === 1 ? " user" : " users"} in the room</span>
             <ul>
                 {renderCurrentUserList(callState.currentUsers)}
             </ul>

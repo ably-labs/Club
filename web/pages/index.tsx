@@ -3,7 +3,7 @@ import Link from 'next/link';
 import {FaGithub} from "react-icons/fa";
 import React from 'react';
 
-const Home = () => {
+const Home = (): React.ReactElement => {
     const createLink = (text: string, href: string) => {
         return <a href={href} className={"hover:underline"}>{text}</a>
     }
@@ -34,6 +34,7 @@ const Home = () => {
                         {createLink("React", "https://reactjs.org/")}{", "}
                         {/*{createLink("Pion", "https://pion.ly/")}{", "}*/}
                         {createLink("Cloudflare Pages", "https://cloudflare.com/")}{". "}
+                        glued together by <a href={"https://orth.uk"} className={"hover:underline text-blue-700"}>{"Ben Butterworth"}</a>
                     </p>
                 </div>
                 <a className={"hover:opacity-20 flex justify-center my-5"} href={"https://github.com/ben-xD/club/"}>

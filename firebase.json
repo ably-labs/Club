@@ -1,0 +1,7 @@
+{
+  "emulators": {
+    "functions": {
+      "port": "8000"
+    }
+  }
+}

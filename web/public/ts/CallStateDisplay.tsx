@@ -1,19 +1,28 @@
 import React from "react";
-import {CallState} from "./Messaging";
+import {CallState, User} from "./Messaging";
+import {ClientId} from "./models/ClientId";
 
 
 interface Props {
     callState: CallState
 }
 
-const CallStateDisplay = ({callState}: Props) => {
+const CallStateDisplay = ({callState}: Props): React.ReactElement => {
+
+    function renderCurrentUserList(currentUsers: Map<ClientId, User>): React.ReactElement[] {
+        const list = []
+        currentUsers.forEach((user) => {
+            list.push(<li key={user.clientId}>{user.username}</li>)
+        })
+        return list
+    }
+
     if (callState.connection === "connected") {
         return <div>
-            <h2>{callState.currentUsers.length}
-                { callState.currentUsers.length === 1 ? " user" : " users"} in the room:</h2>
+            <h2>{callState.currentUsers.size}
+                { callState.currentUsers.size === 1 ? " user" : " users"} in the room</h2>
             <ul>
-                {(callState.currentUsers.length == 0) ? "No users" : <></>}
-                {callState.currentUsers.map(user => <li key={user}>{user}</li>)}
+                {renderCurrentUserList(callState.currentUsers)}
             </ul>
         </div>
     } else if (callState.connection === "disconnected") {

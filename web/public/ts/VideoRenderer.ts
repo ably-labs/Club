@@ -126,7 +126,7 @@ export default class VideoRenderer {
         })
     }
 
-    scheduleFaceDataPublishing(): void {
+    scheduleFaceDataPublishing = (): void => {
         window.clearInterval(this.periodicFaceData)
         const intervalInMilliseconds = 1000 / this.uploadFramesPerSecond
         this.periodicFaceData = window.setInterval(async () => {
@@ -355,7 +355,7 @@ export default class VideoRenderer {
     // TODO I should put them all in one...
     private remoteUserMedias = new Map<string, UserMedia>()
     private remoteUserMeshPoints = new Map<string, Points<BufferGeometry, PointsMaterial>>()
-    private remoteUserNameGeometries = new Map<string, Mesh>()
+    private remoteUserNameGeometries = new Map<string, Mesh<TextGeometry, MeshBasicMaterial>>()
 
     private updateSceneUsingRemoteFacesState() {
         this.remoteUserMedias.forEach((userMedia: UserMedia, clientId: string) => {
@@ -363,19 +363,24 @@ export default class VideoRenderer {
                 const remoteUserMeshPoints = this.remoteUserMeshPoints.get(clientId)
                 remoteUserMeshPoints.geometry.setAttribute('position',
                     new BufferAttribute(userMedia.normalizedLandmarks1D, 3))
+                remoteUserMeshPoints.material.color.set(userMedia.faceMeshColor)
                 remoteUserMeshPoints.material.size = userMedia.meshPointSize
-                remoteUserMeshPoints.material.needsUpdate = true
                 remoteUserMeshPoints.geometry.attributes["position"].needsUpdate = true;
                 const textMesh = this.remoteUserNameGeometries.get(clientId)
                 if (textMesh) {
+                    textMesh.material.color.set(userMedia.faceMeshColor)
                     textMesh.position.set(
                         userMedia.usernameAnchorCoordinates[0],
                         userMedia.usernameAnchorCoordinates[1],
                         0
                     )
+                    // TODO cache the previous color and material, to avoid updating every frame.
+                    textMesh.material.needsUpdate = true
                 }
+                // TODO cache the previous color and material, to avoid updating every frame.
+                remoteUserMeshPoints.material.needsUpdate = true
             } else {
-                const meshColor = this.remoteUserMedias.get(clientId).faceMeshColor
+                const meshColor = userMedia.faceMeshColor
                 const material = new PointsMaterial({color: meshColor, size: userMedia.meshPointSize});
                 const geometry = new BufferGeometry()
                 geometry.setAttribute('position', new BufferAttribute(userMedia.normalizedLandmarks1D, 3))
@@ -384,7 +389,7 @@ export default class VideoRenderer {
                 this.remoteUserMeshPoints.set(userMedia.clientId, remoteUserMeshPoints)
                 this.scene.add(remoteUserMeshPoints)
 
-                this.renderText(clientId, meshColor, userMedia.usernameAnchorCoordinates,(textMesh) => {
+                this.renderText(userMedia.username, meshColor, userMedia.usernameAnchorCoordinates,(textMesh) => {
                     this.remoteUserNameGeometries.set(clientId, textMesh)
                 })
             }
@@ -392,13 +397,13 @@ export default class VideoRenderer {
     }
 
     /**
-     * @param clientId
+     * @param username
      * @param color
      * @param anchorCoordinates2D
      * @param referenceHandler handle the resource after getting it: e.g. save it, and update it later
      * @private
      */
-    private renderText(clientId: string,
+    private renderText(username: string,
                      color: string,
                      anchorCoordinates2D: Uint16Array,
                      referenceHandler: (textMesh: Mesh<TextGeometry, MeshBasicMaterial>) => void) {
@@ -406,7 +411,7 @@ export default class VideoRenderer {
         // fonts listed at https://threejs.org/docs/#api/en/geometries/TextGeometry
         loader.load('fonts/ubuntu_mono_regular.json',
             (responseFont => {
-                const textGeometry = new TextGeometry(clientId, {
+                const textGeometry = new TextGeometry(username, {
                     font: responseFont,
                     size: 1500,
                 })
@@ -418,7 +423,7 @@ export default class VideoRenderer {
             }),
             (progressEvent) => { /* do nothing */ },
             (errorEvent) => {
-                console.warn(`Text font didn't load, won't show clientId: ${clientId} on the render canvas.`)
+                console.warn(`Text font didn't load, won't show username: ${username} on the render canvas.`)
                 console.warn({errorEvent})
             }
         )

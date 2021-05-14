@@ -15,6 +15,9 @@ and [Ably](https://ably.com/).
 - Install dependencies: `npm i`
 - Run development mode: `npm run dev`
 
+## Deploying to Cloudflare pages
+- Make sure the variables in .env.local are set as environment variables in the cloudflare pages settings.
+
 ## Tech used
 
 - Cloud providers

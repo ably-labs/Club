@@ -16,7 +16,7 @@ export default function VideoRoom(): ReactElement {
     const [username, setUsername] = useState('')
     const [callState, setCallState] = useState<CallState>({
         connection: "disconnected",
-        currentUsers: []
+        currentUsers: new Map()
     });
     const renderOutputRef = useRef(null);
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -49,9 +49,8 @@ export default function VideoRoom(): ReactElement {
         messagingRef.current.setUpdateRemoteFaceHandler(videoRendererRef.current.updateRemoteUserMedia);
         messagingRef.current.setRemoveRemoteUserHandler(videoRendererRef.current.removeRemoteUser);
         (async () => {
-            await messagingRef.current.connect(randomUsername)
             videoRef.current.srcObject = await navigator.mediaDevices.getUserMedia({video: true});
-            await messagingRef.current.connectToLobby()
+            await messagingRef.current.connect()
         })();
 
         return () => {

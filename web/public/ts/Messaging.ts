@@ -2,16 +2,25 @@ import Ably, {Realtime} from 'ably/promises'
 import {Types} from "ably";
 import UserMedia from "./models/UserMedia";
 import FaceMessage from "./models/FaceMessage";
+import {v4 as uuidv4} from 'uuid';
+import {ClientId} from "./models/ClientId";
+import {createAuthCallback, requestTokenRequest} from "./auth";
 
 export type ConnectionState = "connected" | "disconnected"
 
-export interface CallState {
-    connection: ConnectionState,
-    currentUsers: string[]
+export type User = {
+    clientId: string,
+    username: string
 }
 
-// const CLUB2D_API_URL = process.env.NEXT_PUBLIC_CLUB2D_API_URL
-const CLUB2D_API_URL = "http://localhost:8000/club2d-app/europe-west2/app/"
+interface PresenceData {
+    username: string
+}
+
+export interface CallState {
+    connection: ConnectionState,
+    currentUsers: Map<ClientId, User>
+}
 
 /**
  * Uses Ably to send data across all clients.
@@ -20,37 +29,40 @@ export default class Messaging {
     private ablyClient: Realtime;
     private readonly CHANNEL_ID = "rooms:lobby";
     private channel: Types.RealtimeChannelPromise | null = null
-    private setCallState: (value: (((prevState: CallState) => CallState) | CallState)) => void;
-    private connectedClientIds: string[];
+    private readonly setCallState: (value: (((prevState: CallState) => CallState) | CallState)) => void;
+    private connectedClients = new Map<ClientId, User>();
+    private readonly clientId: string;
     private username: string;
     private updateRemoteFaceMeshs: (remoteUserMedia: UserMedia) => void
-    private removeRemoteUser: (clientId: string) => void
+    private removeRemoteUser: (clientId: ClientId) => void
 
     constructor(username: string,
                 setCallState: (value: (((prevState: CallState) => CallState) | CallState)) => void,
     ) {
+        this.clientId = uuidv4()
         this.username = username
         this.setCallState = setCallState
     }
 
-    connect = async (username: string): Promise<void> => {
+    connect = async (): Promise<void> => {
         try {
-            const tokenRequest = await this.requestTokenRequest(username)
-            const options: Ably.Types.ClientOptions = {
-                clientId: username,
+            const tokenRequest = await requestTokenRequest(this.clientId)
+            this.ablyClient = new Realtime({
+                clientId: this.clientId,
                 echoMessages: false,
                 useBinaryProtocol: true,
                 token: tokenRequest,
-                authCallback: async (data, callback) => {
-                    const newTokenRequest = await this.requestTokenRequest(username)
-                    const tokenDetails: Types.TokenDetails = await this.ablyClient.auth.requestToken({clientId: data.clientId}, newTokenRequest)
-                    callback(null, tokenDetails)
+                authCallback: createAuthCallback(this.clientId)
+            })
+            this.channel = this.ablyClient.channels.get(this.CHANNEL_ID, {
+                params: {
+                    rewind: "0",
                 }
-            }
-            this.ablyClient = new Realtime(options)
+            })
+            this.addEventHandlers();
         } catch (e) {
             console.error(e)
-            throw new Error("Ably failed.")
+            throw new Error("Failed to connect to Ably.")
         }
 
         this.ablyClient.connection.on('connected', () => {
@@ -62,103 +74,46 @@ export default class Messaging {
         });
     }
 
-    private requestTokenRequest = async (clientId: string): Promise<Types.TokenRequest> => {
-        const queryParams = new URLSearchParams([["clientId", clientId]]).toString()
-        if (!CLUB2D_API_URL) {
-            console.error(`CLUB2D_API_URL is ${CLUB2D_API_URL}, it needs to be specified as an environment variable.`)
-        }
-        const request = `${CLUB2D_API_URL}/createToken?` + queryParams
-        try {
-            const response = await fetch(request, {
-                method: "post",
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                }
-            })
-            if (response.status === 200) {
-                return await response.json()
-            } else {
-                console.error(`Failed to make request: ${request}, got ${response.status}, ${response.body}.`)
-            }
-        } catch (e) {
-            console.error(`Failed to make request: ${request}, failed with ${e}.`)
-        }
-    }
-
     setUpdateRemoteFaceHandler(callback: (remoteUserMedias: UserMedia) => void): void {
         this.updateRemoteFaceMeshs = callback
     }
 
     setUsername = async (username: string): Promise<void> => {
         this.username = username
-        await this.close()
-        this.connect(username)
-        // TODO Use UUID clientId and change the name of the user. And store usernames in an object
+        await this.updatePresence(username)
     }
 
-    connectToLobby = async (): Promise<void> => {
-        const channelOptions: Types.ChannelOptions = {
-            params: {
-                rewind: "0",
-            }
-        }
-        this.channel = this.ablyClient.channels.get(this.CHANNEL_ID, channelOptions)
-
-        try {
-            const presenceMessages = await this.channel.presence.get()
-            this.connectedClientIds = presenceMessages.map(presenceMessage => {
-                return presenceMessage.clientId
+    private addEventHandlers() {
+        this.channel.subscribe("face", (message: Types.Message) => {
+            const faceMessage = FaceMessage.decode(message.data)
+            this.updateRemoteFaceMeshs({
+                clientId: message.clientId,
+                normalizedLandmarks1D: faceMessage.coordinates,
+                faceMeshColor: faceMessage.color,
+                meshPointSize: faceMessage.meshPointSize,
+                usernameAnchorCoordinates: faceMessage.usernameAnchorCoordinates
             })
+        })
 
-            this.setCallState({
-                connection: "connected" as ConnectionState,
-                currentUsers: this.connectedClientIds
-            })
+        this.channel.presence.subscribe("enter", (member) => {
+            const {username} = member.data
+            console.log(`User entered: ${username} with id${member.clientId}`)
+            this.addUser(member)
+        })
 
-            this.channel.subscribe("face", (message: Types.Message) => {
-                const faceMessage = FaceMessage.decode(message.data)
-                this.updateRemoteFaceMeshs({
-                    clientId: message.clientId,
-                    normalizedLandmarks1D: faceMessage.coordinates,
-                    faceMeshColor: faceMessage.color,
-                    meshPointSize: faceMessage.meshPointSize,
-                    usernameAnchorCoordinates: faceMessage.usernameAnchorCoordinates
-                })
-            })
+        this.channel.presence.subscribe('present', (presenceMessage) => {
+            this.addUser(presenceMessage)
+        })
 
-            this.channel.presence.subscribe("enter", (member) => {
-                console.log(`User entered: ${member.clientId}`)
-                this.connectedClientIds.push(member.clientId);
-                this.setCallState({
-                    connection: "connected",
-                    currentUsers: this.connectedClientIds
-                })
-            })
-
-            this.channel.presence.subscribe('leave', (message => {
-                this.connectedClientIds = this.connectedClientIds.filter((value) => value != message.clientId)
-                this.removeRemoteUser(message.clientId)
-                this.setCallState({
-                    connection: "connected",
-                    currentUsers: this.connectedClientIds
-                })
-            }))
-        } catch (e) {
-            console.warn(e)
-        }
+        this.channel.presence.subscribe('leave', (presenceMessage => {
+            this.removeUser(presenceMessage)
+        }))
     }
 
     joinLobbyPresence = async (): Promise<void> => {
+        // TODO confirm that myself creates a "present" message which i also see
         await this.channel.presence.enter()
-        const presenceMessages = await this.channel.presence.get()
-        this.connectedClientIds = presenceMessages.map(presenceMessage => {
-            return presenceMessage.clientId
-        })
-        this.setCallState({
-            connection: "connected",
-            currentUsers: this.connectedClientIds
-        })
+        // await this.fetchPresence()
     }
 
     publishToLobby = async (faceMeshCoordinates: Uint16Array,
@@ -176,19 +131,30 @@ export default class Messaging {
     }
 
     leaveLobbyPresense = async (): Promise<void> => {
+        // TODO confirm i also get 'leave' message, so ill update.
         await this.channel.presence.leave()
-        this.connectedClientIds = this.connectedClientIds.filter((value) => value !== this.username)
-        this.setCallState({
-            connection: "connected",
-            currentUsers: this.connectedClientIds
-        });
     }
+
+    // private fetchPresence = async () => {
+    //     await this.channel.presence.get()
+    //     this.connectedClients.clear()
+    //     const presenceMessages = await this.channel.presence.get()
+    //     presenceMessages.forEach((presenceMessage) => {
+    //         const clientId = presenceMessage.clientId
+    //         const {username} = presenceMessage.data
+    //         this.connectedClients.set(clientId, {username, clientId})
+    //     })
+    //     this.setCallState({
+    //         connection: "connected",
+    //         currentUsers: this.connectedClients
+    //     })
+    // }
 
     async exitRoom(): Promise<void> {
         await this.channel.detach()
         this.setCallState({
             connection: "disconnected",
-            currentUsers: []
+            currentUsers: new Map()
         })
     }
 
@@ -202,5 +168,34 @@ export default class Messaging {
      */
     setRemoveRemoteUserHandler(removeRemoteUser: (clientId: string) => void): void {
         this.removeRemoteUser = removeRemoteUser
+    }
+
+    private updatePresence = async (username: string) => {
+        const presenceUpdate: PresenceData = {
+            username
+        }
+        await this.channel.presence.update(presenceUpdate)
+    }
+
+    private addUser(presenceMessage: Types.PresenceMessage) {
+        const clientId = presenceMessage.clientId
+        const {username} = presenceMessage.data
+
+        this.connectedClients.set(clientId, {username, clientId})
+        this.setCallState({
+            connection: "connected",
+            currentUsers: this.connectedClients
+        })
+    }
+
+    private removeUser(presenceMessage: Types.PresenceMessage) {
+        this.connectedClients.delete(presenceMessage.clientId)
+        this.removeRemoteUser(presenceMessage.clientId)
+
+        // TODO confirm if i can set connection: connected or not
+        this.setCallState({
+            connection: "connected",
+            currentUsers: this.connectedClients
+        })
     }
 }

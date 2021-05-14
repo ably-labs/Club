@@ -17,6 +17,7 @@ Note: # The code in server directory is not being used at the moment, it will pr
         // @ts-ignore
         console.warn(`api key is ${ABLY_PRIVATE_API_KEY}`)
     ```
+  - In the end, I moved serverless function to firebase functions. Initially tried cloudflare workers, but it being in Web Workers (libraries didn't work) and poor development experience made it difficult to debug.
   - Top tip: Join the cloudflare discord to get for support from really helpful Cloudflare people.
 - Whats the difference between a Service Worker and a Web Worker?
   - The difference lies their usage.

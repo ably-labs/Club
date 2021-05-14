@@ -1,5 +1,7 @@
 import {Types} from "ably";
 
+// TODO change the path depending on the production/ staging/ dev environment
+// TODO create separate project for cloud functions dev and production
 export const CLUB2D_API_URL = process.env.NEXT_PUBLIC_CLUB2D_API_URL
 const createTokenRequestUrl = `${CLUB2D_API_URL}/createTokenRequest`
 

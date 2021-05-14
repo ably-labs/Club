@@ -1,10 +1,9 @@
-import Ably, {Realtime} from 'ably/promises'
+import Ably, {Realtime, Rest} from 'ably/promises'
 import {Types} from "ably";
 import UserMedia from "./models/UserMedia";
 import FaceMessage from "./models/FaceMessage";
-import {v4 as uuidv4} from 'uuid';
 import {ClientId} from "./models/ClientId";
-import {createAuthCallback, requestTokenRequest} from "./auth";
+import {requestTokenRequest} from "./auth";
 
 export type ConnectionState = "connected" | "disconnected"
 
@@ -39,39 +38,42 @@ export default class Messaging {
     constructor(username: string,
                 setCallState: (value: (((prevState: CallState) => CallState) | CallState)) => void,
     ) {
-        this.clientId = uuidv4()
         this.username = username
         this.setCallState = setCallState
     }
 
     connect = async (): Promise<void> => {
         try {
-            const tokenRequest = await requestTokenRequest(this.clientId)
             this.ablyClient = new Realtime({
-                clientId: this.clientId,
+                useTokenAuth: true,
                 echoMessages: false,
-                useBinaryProtocol: true,
-                token: tokenRequest,
-                authCallback: createAuthCallback(this.clientId)
+                authCallback: async (data, callback) => {
+                    try {
+                        callback(null, await requestTokenRequest(data.clientId))
+                    } catch (e) {
+                        callback(e, null)
+                    }
+                }
             })
+
             this.channel = this.ablyClient.channels.get(this.CHANNEL_ID, {
                 params: {
                     rewind: "0",
                 }
             })
-            this.addEventHandlers();
+
+            if (this.channel) {
+                this.setCallState({
+                    connection: "connected",
+                    currentUsers: new Map()
+                })
+            }
+
         } catch (e) {
             console.error(e)
             throw new Error("Failed to connect to Ably.")
         }
-
-        this.ablyClient.connection.on('connected', () => {
-            console.log("Connected to Ably.")
-        })
-
-        this.ablyClient.connection.on('closed', () => {
-            console.log("Disconnected from Ably.")
-        });
+        this.addEventHandlers();
     }
 
     setUpdateRemoteFaceHandler(callback: (remoteUserMedias: UserMedia) => void): void {
@@ -83,11 +85,21 @@ export default class Messaging {
         await this.updatePresence(username)
     }
 
-    private addEventHandlers() {
+    private addEventHandlers = () => {
+
+        this.ablyClient.connection.on('connected', () => {
+            console.log("Connected to Ably.")
+        })
+
+        this.ablyClient.connection.on('closed', () => {
+            console.log("Disconnected from Ably.")
+        });
+
         this.channel.subscribe("face", (message: Types.Message) => {
             const faceMessage = FaceMessage.decode(message.data)
             this.updateRemoteFaceMeshs({
                 clientId: message.clientId,
+                username: this.connectedClients.get(message.clientId).username,
                 normalizedLandmarks1D: faceMessage.coordinates,
                 faceMeshColor: faceMessage.color,
                 meshPointSize: faceMessage.meshPointSize,
@@ -111,9 +123,7 @@ export default class Messaging {
     }
 
     joinLobbyPresence = async (): Promise<void> => {
-        // TODO confirm that myself creates a "present" message which i also see
-        await this.channel.presence.enter()
-        // await this.fetchPresence()
+        await this.channel.presence.enter({username: this.username})
     }
 
     publishToLobby = async (faceMeshCoordinates: Uint16Array,
@@ -133,22 +143,8 @@ export default class Messaging {
     leaveLobbyPresense = async (): Promise<void> => {
         // TODO confirm i also get 'leave' message, so ill update.
         await this.channel.presence.leave()
+        this.connectedClients.delete(this.clientId)
     }
-
-    // private fetchPresence = async () => {
-    //     await this.channel.presence.get()
-    //     this.connectedClients.clear()
-    //     const presenceMessages = await this.channel.presence.get()
-    //     presenceMessages.forEach((presenceMessage) => {
-    //         const clientId = presenceMessage.clientId
-    //         const {username} = presenceMessage.data
-    //         this.connectedClients.set(clientId, {username, clientId})
-    //     })
-    //     this.setCallState({
-    //         connection: "connected",
-    //         currentUsers: this.connectedClients
-    //     })
-    // }
 
     async exitRoom(): Promise<void> {
         await this.channel.detach()
@@ -192,7 +188,6 @@ export default class Messaging {
         this.connectedClients.delete(presenceMessage.clientId)
         this.removeRemoteUser(presenceMessage.clientId)
 
-        // TODO confirm if i can set connection: connected or not
         this.setCallState({
             connection: "connected",
             currentUsers: this.connectedClients

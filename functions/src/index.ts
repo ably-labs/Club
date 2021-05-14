@@ -2,6 +2,7 @@ import * as functions from "firebase-functions";
 import * as express from "express";
 import Auth from "./auth";
 import * as cors from "cors";
+import {v4 as uuidv4} from "uuid";
 
 const expressApp = express();
 
@@ -11,7 +12,10 @@ const expressApp = express();
 //     "https://club2d.orth.uk",
 //     "https://*.orth.uk"],
 // };
-expressApp.use(cors());
+expressApp.use(cors({
+  origin: true,
+  optionsSuccessStatus: 200,
+}));
 // expressApp.use(cors(corsOptions));
 expressApp.use(express.json());
 
@@ -22,11 +26,15 @@ const auth = new Auth();
 //   response.send("Hello from Firebase!");
 // });
 
-// expressApp.options("createToken", cors());
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+// expressApp.options("/createTokenRequest", (request, response) => {
+//   return response.status(200).send();
+// });
 
-expressApp.post("/createToken", async (request, response) => {
+expressApp.post("/createTokenRequest", async (request, response) => {
   // functions.logger.info("Hello logs!", {structuredData: true});
-  const clientId = request.query.clientId as string;
+  const clientId = uuidv4();
   const tokenRequest = await auth.createTokenRequest(clientId);
   response.send(JSON.stringify(tokenRequest));
 });

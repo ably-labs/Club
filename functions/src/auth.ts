@@ -7,13 +7,19 @@ import * as functions from "firebase-functions";
 */
 class Auth {
     private ablyRestAPI: Ably.Rest
-    private ablyApiKey = functions.config().ably.api_key
+    private ablyApiKey = (() => {
+      if (process.env.IS_FIREBASE_CLI) {
+        return functions.config().staging.ably.api_key;
+      } else {
+        return functions.config().ably.api_key;
+      }
+    })()
     /**
      * Constructor
      */
     constructor() {
       if (!this.ablyApiKey) {
-        throw new Error(`api key is ${(this.ablyApiKey)}`);
+        throw new Error(`api key is ${(this.ablyApiKey)}, it needs to be set. Get it from ably.com/accounts`);
       }
       const clientOptions: Ably.Types.ClientOptions = {
         key: this.ablyApiKey,

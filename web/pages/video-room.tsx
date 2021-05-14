@@ -53,9 +53,9 @@ export default function VideoRoom(): ReactElement {
             videoRef.current.srcObject = await navigator.mediaDevices.getUserMedia({video: true});
         })();
 
-        return async () => {
+        return () => {
             videoRendererRef.current.dispose()
-            await messagingRef.current.close()
+            messagingRef.current.close()
         }
     }, []);
 

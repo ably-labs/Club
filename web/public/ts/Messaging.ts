@@ -154,7 +154,7 @@ export default class Messaging {
         })
     }
 
-    async close(): Promise<void> {
+    close(): void {
         this.ablyClient.close()
     }
 

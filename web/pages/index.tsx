@@ -35,9 +35,10 @@ const Home = (): React.ReactElement => {
                         {/*{createLink("Pion", "https://pion.ly/")}{", "}*/}
                         {createLink("Cloudflare Pages", "https://cloudflare.com/")}{", "}
                         {createLink("Firebase Functions", "https://firebase.google.com/docs/functions/")}{", "}
-                        glued together by <a href={"https://orth.uk"}
-                                             className={"hover:underline text-blue-700"}>{"Ben Butterworth"}</a>
                     </p>
+                    <p className={"mt-3"}>by <a href={"https://orth.uk"}
+                             className={"hover:underline text-blue-700"}>{"Ben Butterworth"}</a></p>
+
                 </div>
                 <a className={"hover:opacity-20 flex justify-center my-5"} href={"https://github.com/ben-xD/club/"}>
                     <FaGithub className={"hover:opacity-20"} size={32}/>

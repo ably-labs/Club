@@ -1,6 +1,9 @@
 # Club2D
 
-A video calling app which shows a virtual character instead of your real face, so you can chat anonymously. You can also move around the environment in 2D. Audio/ sound is not yet sent between clients.
+A video calling app which shows a virtual character instead of your real face, so you can chat anonymously. You can also move around the environment in 2D. This app is still in development. 
+
+## TODOs
+- Send Audio/ sound between clients.
 
 Note: # The code in server directory is not being used at the moment, it will probably be deleted/ heavily modified when I work on adding audio support efficiently.
 

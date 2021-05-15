@@ -8,13 +8,14 @@ interface Props {
     changeFaceMeshSize: (number) => void
 }
 
-const VideoRoomOptions = ({toggleOriginalVideoFeed, changeFaceMeshColor, changeFaceMeshSize}: Props) => {
+const VideoRoomOptions = ({toggleOriginalVideoFeed, changeFaceMeshColor, changeFaceMeshSize}: Props)
+    : React.ReactElement => {
     const [colorPickerIsOpen, setColorPickerIsOpen] = useState(false)
     const [faceMeshSizePickerIsOpen, setFaceMeshSizePickerIsOpen] = useState(false)
     const colorFieldRef = useRef(null)
     const meshPointSizeRef = useRef(null)
     const [colorField, setColorField] = useState("")
-    const [meshPointSizeField, setMeshPointSizeField] = useState(null)
+    const [meshPointSizeField, setMeshPointSizeField] = useState("")
 
     const validRegexPattern = /^#([0-9A-F]{3}){1,2}$/i;
 
@@ -27,16 +28,11 @@ const VideoRoomOptions = ({toggleOriginalVideoFeed, changeFaceMeshColor, changeF
         }
     }
 
-    function isHexColor(hex) {
-        return typeof hex === 'string'
-            && hex.length <= 6
-            && !isNaN(Number('0x' + hex))
-    }
-
     function handleNewMeshSize() {
-        if (meshPointSizeField && meshPointSizeField <= 5 && meshPointSizeField >= 0) {
-            setMeshPointSizeField(null)
-            changeFaceMeshSize(meshPointSizeField)
+        const meshSize = parseFloat(meshPointSizeField)
+        if (meshSize && meshSize <= 5 && meshSize >= 0) {
+            setMeshPointSizeField("")
+            changeFaceMeshSize(meshSize)
         }
     }
 

@@ -1,8 +1,8 @@
 import React, {useRef, useState} from 'react';
 import {Dialog} from "@headlessui/react";
-import {generateRandomUsername} from "./names";
+import {generateRandomUsername} from "../names";
 import {FaTimes} from "react-icons/fa";
-import {pickRandomTailwindColor} from "./colors";
+import {pickRandomTailwindColor} from "../colors";
 
 interface Props {
     handleSubmit: (string) => void

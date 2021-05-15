@@ -3,7 +3,7 @@ import Head from 'next/head';
 import VideoRenderer from "../public/ts/VideoRenderer";
 import Messaging, {CallState} from "../public/ts/Messaging";
 import CallStateDisplay from "../public/ts/CallStateDisplay";
-import EditUsernameModal from "../public/ts/EditUsernameModal";
+import EditUsernameModal from "../public/ts/ui/EditUsernameModal";
 import {generateRandomUsername} from "../public/ts/names";
 import {BrowserView} from 'react-device-detect';
 import {FaEdit, FaPause, FaPhone, FaPhoneSlash, FaPlay, FaSpinner} from "react-icons/fa";

@@ -1,0 +1,9 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Client + Server + Functions" type="CompoundRunConfigurationType">
+    <toRun name="NextJS Client" type="JavascriptDebugType" />
+    <toRun name="NextJS Server" type="js.build_tools.npm" />
+    <toRun name="Functions Debugger" type="ChromiumRemoteDebugType" />
+    <toRun name="Functions" type="js.build_tools.npm" />
+    <method v="2" />
+  </configuration>
+</component>

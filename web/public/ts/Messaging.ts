@@ -118,11 +118,15 @@ export default class Messaging {
         this.channel.presence.subscribe("enter", (presenceMessage) => {
             const {username} = presenceMessage.data
             console.log(`User entered: ${username} with id${presenceMessage.clientId}`)
-            this.addUser(presenceMessage)
+            this.setUser(presenceMessage)
         })
 
         this.channel.presence.subscribe('present', (presenceMessage) => {
-            this.addUser(presenceMessage)
+            this.setUser(presenceMessage)
+        })
+
+        this.channel.presence.subscribe('update', (presenceMessage) => {
+            this.setUser(presenceMessage)
         })
 
         this.channel.presence.subscribe('leave', (presenceMessage => {
@@ -178,7 +182,7 @@ export default class Messaging {
         this.removeRemoteUser = removeRemoteUser
     }
 
-    updatePresence = async () => {
+    updatePresence = async (): Promise<void> => {
         const presenceUpdate: PresenceData = {
             username: this.username,
             color: this.color
@@ -186,7 +190,7 @@ export default class Messaging {
         await this.channel.presence.update(presenceUpdate)
     }
 
-    private addUser(presenceMessage: Types.PresenceMessage) {
+    private setUser(presenceMessage: Types.PresenceMessage) {
         const clientId = presenceMessage.clientId
         const {username, color} = presenceMessage.data
 

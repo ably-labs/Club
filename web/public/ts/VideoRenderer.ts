@@ -446,10 +446,9 @@ export default class VideoRenderer {
     }
 
     createRandomOffset = (): {up: number, right: number} => {
-        // Multiply height and width by fraction to avoid faces from getting clipped by the canvas on the right and upper side
+        // Multiply height/ width by fraction to avoid faces from getting clipped by the canvas on right/ upper side
         const yOffset = Math.floor(Math.random() * this.cameraHeight * 0.8);
         const xOffset = Math.floor(Math.random() * this.cameraWidth * 0.7);
-        console.log({xOffset, yOffset})
         return {
             up: yOffset,
             right: xOffset,

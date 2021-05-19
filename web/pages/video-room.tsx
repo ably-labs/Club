@@ -14,7 +14,6 @@ import TextGuide from "../public/ts/ui/TextGuide";
 
 const VideoRoom = (): ReactElement => {
     // Force client side rendering: https://github.com/vercel/next.js/issues/2473#issuecomment-580324241
-    const [isComponentMounted, setIsComponentMounted] = useState(false)
     const [loading, setLoading] = useState(true)
     const [username, setUsername] = useState('')
     const [callState, setCallState] = useState<CallState>("disconnected")
@@ -33,40 +32,34 @@ const VideoRoom = (): ReactElement => {
     const [originalVideoWidth, setOriginalVideoWidth] = useState(DEFAULT_ORIGINAL_VIDEO_WIDTH)
     const [trackingEnabled, setTrackingEnabled] = useState(true)
 
-    // This is a trick to force this component/ and the setup code in useEffect to be called
-    // only on the client side, instead of server-side.
-    useEffect(() => setIsComponentMounted(true), [])
-
     useEffect(() => {
-        if (isComponentMounted) {
-            const randomUsername = generateRandomUsername()
-            const randomColor = pickRandomTailwindColor()
-            setUsername(randomUsername)
-            setColor(randomColor)
+        const randomUsername = generateRandomUsername()
+        const randomColor = pickRandomTailwindColor()
+        setUsername(randomUsername)
+        setColor(randomColor)
 
-            messagingRef.current = new Messaging(randomUsername, randomColor, setCallState, setCurrentUsers);
-            const frameRate = parseInt(process.env.NEXT_PUBLIC_ABLY_UPLOAD_FRAME_RATE)
-            videoRendererRef.current = new VideoRenderer(videoRef.current,
-                renderOutputRef.current,
-                fpsCounterRef.current,
-                messagingRef.current,
-                randomUsername,
-                {faceMeshColor: randomColor.hexCode, stopLoadingScreenCallback: setLoading},
-                frameRate
-            );
-            messagingRef.current.setUpdateRemoteFaceHandler(videoRendererRef.current.updateRemoteUserMedia);
-            messagingRef.current.setRemoveRemoteUserHandler(videoRendererRef.current.removeRemoteUser);
-            (async () => {
-                await messagingRef.current.connect()
-                videoRef.current.srcObject = await navigator.mediaDevices.getUserMedia({video: true});
-            })();
+        messagingRef.current = new Messaging(randomUsername, randomColor, setCallState, setCurrentUsers);
+        const frameRate = parseInt(process.env.NEXT_PUBLIC_ABLY_UPLOAD_FRAME_RATE)
+        videoRendererRef.current = new VideoRenderer(videoRef.current,
+            renderOutputRef.current,
+            fpsCounterRef.current,
+            messagingRef.current,
+            randomUsername,
+            {faceMeshColor: randomColor.hexCode, stopLoadingScreenCallback: setLoading},
+            frameRate
+        );
+        messagingRef.current.setUpdateRemoteFaceHandler(videoRendererRef.current.updateRemoteUserMedia);
+        messagingRef.current.setRemoveRemoteUserHandler(videoRendererRef.current.removeRemoteUser);
+        (async () => {
+            await messagingRef.current.connect()
+            videoRef.current.srcObject = await navigator.mediaDevices.getUserMedia({video: true});
+        })();
 
-            return () => {
-                videoRendererRef.current.dispose()
-                messagingRef.current.close()
-            }
+        return () => {
+            videoRendererRef.current.dispose()
+            messagingRef.current.close()
         }
-    }, [isComponentMounted]);
+    }, []);
 
     const joinCallHandler = async () => {
         videoRendererRef.current.scheduleFaceDataPublishing()
@@ -125,10 +118,6 @@ const VideoRoom = (): ReactElement => {
 
     const changeFaceMeshSize = (newSize: number) => {
         videoRendererRef.current.updateSceneWithLocalFaceMeshSize(newSize)
-    }
-
-    if (!isComponentMounted) {
-        return null
     }
 
     return (

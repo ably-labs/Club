@@ -133,7 +133,7 @@ const VideoRoom = (): ReactElement => {
 
     return (
         <Layout>
-            <div className='container max-w-none'>
+            <div className='container max-w-none pb-5'>
                 <Head>
                     <title>Anonymous Video Calls</title>
                 </Head>

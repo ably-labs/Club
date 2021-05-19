@@ -2,7 +2,7 @@ import * as functions from "firebase-functions";
 import * as express from "express";
 import Auth from "./auth";
 import * as cors from "cors";
-import {v4 as uuidv4} from "uuid";
+import {v4 as uuid} from "uuid";
 
 const expressApp = express();
 
@@ -34,7 +34,10 @@ const auth = new Auth();
 
 expressApp.post("/createTokenRequest", async (request, response) => {
   // functions.logger.info("Hello logs!", {structuredData: true});
-  const clientId = uuidv4();
+  let clientId: string | undefined = request.query["clientId"] as string;
+  if (!clientId) {
+    clientId = uuid();
+  }
   const tokenRequest = await auth.createTokenRequest(clientId);
   response.send(JSON.stringify(tokenRequest));
 });

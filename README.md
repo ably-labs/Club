@@ -1,35 +1,29 @@
-# Club2D
+# Anonymous Video Calls (Club2D)
 
-A video calling app which shows a virtual character instead of your real face, so you can chat anonymously. You can also move around the environment in 2D. This app is still in development. 
+Anonymous video calls (aka. Club2D) allow you to communicate with someone using your facial expression and animation, without revealing your identity, physical background or other sensitive information. It allows you to safely share expressions and emotion.
 
-## TODOs
-- Send Audio/ sound between clients.
+This application uses Ably. It sends 3D faces coordinates between users via Ably pub/sub messages a few times per second (the configured frame rate), and updates additional metadata (color of face mesh, username) when users change it. Metadata is updated only when changed, using Ably presence messages.
 
-Note: # The code in server directory is not being used at the moment, it will probably be deleted/ heavily modified when I work on adding audio support efficiently.
+This application uses MediaPipe, Three.js, Next.JS and React together. Mediapipe is used to process your camera feed to generate a face mesh and human body keypoints. Three.JS is used to render the face points, username text (and in the future, more objects), Next.JS is used to build a fast React app quickly and conveniently.
 
-## Things learnt:
+There are 2 subprojects:
 
-- Cloudflare related:
-  - Cloudflare workers related:
-    - Cloudflare workers runs as a **Service Worker**, not as a NodeJS application or a browser application. Some libraries don't support this very well, and so this limits the use of Cloudflare Workers. This is different to other serverless products, which run in NodeJS. The reason why Cloudflare uses Service Workers and not NodeJS is to run in V8 isolates for "scale, security and speed". See Kenton Varda's [talk](https://www.youtube.com/watch?v=HK04UxENH10) for more.
-    - You need a DNS record pointing to the cloudflare worker route. i.e. If you want your worker to work at api.call.orth.uk, you need to explicitly set api.call.orth.uk to have a record. Erisa on the Cloudflare Workers discord suggested setting a `AAAA` record to `100::`, and that worked great.
-    - Running `wrangler dev` might not give you any errors. You should first try to publish the worker using `wrangler publish`, fix the errors and confirm it works. Then `wrangler dev` will work.
-  - Cloudflare's free TLS/SSL certs only cover the apex (orth.uk) and 1 subdomain (club2d.orth.uk). So `api.club2d.orth.uk` doesn't get a valid SSL cert. Thanks `The Freelancer ;)` on Discord again. So I solved this by using the default worker domain, i.e. `worker_name.your_worker_subdomain.workers.dev`, which doesn't have this problem.
-  - Environment variables specified in `wrangler.toml` or the cloudflare website will be accessible as global variables, not through `process.env.VAR_NAME`, but just `VAR_NAME`. This is confusing, because if you're using typescript, you need to ignore the warning like so:
-    ```js
-        // @ts-ignore
-        console.warn(`api key is ${ABLY_PRIVATE_API_KEY}`)
-    ```
-  - In the end, I moved serverless function to firebase functions. Initially tried cloudflare workers, but it being in Web Workers (libraries didn't work) and poor development experience made it difficult to debug.
-  - Top tip: Join the cloudflare discord to get for support from really helpful Cloudflare people.
-- Whats the difference between a Service Worker and a Web Worker?
-  - The difference lies their usage.
-    - Web Worker: General work done off the main thread.
-    - Service Worker: A special purpose runtime which is a proxy between the browser and the server. Service Workers have extra APIs for intercepting network requests. Because Cloudflare Workers intercept network requests that are incoming to a domain, they kind of fit the service worker model. 
-  - Webpack uses the same target (`webworker`) for both of them
-  - From client/ browser apps, you pass messages to it using `window.postMessage()`
+- `web`: The web client which can be built and hosted online. Users visit this page to join calls between each other.
+- `functions`: A directory containing serverless functions, which can perform token authentication, the recommended way of authentication. This keeps the Ably API key on the server, where a malicious user can't steal or abuse the API key.
 
-## Discoveries:
+## Tech used
 
-- Machine learning: MediaPipe library has memory leak. Submitted and pending fix/ release
-- Serialization: MessagePack is turning Float32's into Float64, taking up double the space with no benefit. Tried protobuf, but found a bug. Switching to flatbuffers.
+- Cloud providers
+  - Ably is used to transfer data between users
+  - Cloudflare Pages is used to host the client application
+  - Firebase cloud functions are used to host a serverless function to generate tokens without revealing/ shipping the API key in browsers
+- Web client
+  - [Ably Javascript/ Typescript SDK](https://www.npmjs.com/package/ably)
+  - [Three.js](https://threejs.org/)
+  - [NextJS](http://nextjs.org/)
+  - [React](https://reactjs.org/)
+
+## Debugging
+
+- Debug configurations exist for Webstorm (Jetbrains IDE). These debug configurations allow you to debug all components of the app (firebase functions, client app, client app build system) from 1 button:
+  ![](images/webstorm_debug.png)

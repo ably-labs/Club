@@ -1,30 +1,30 @@
 import React, {ReactElement, useEffect, useRef, useState} from 'react';
 import Head from 'next/head';
 import VideoRenderer from "../public/ts/VideoRenderer";
-import Messaging, {CallState} from "../public/ts/Messaging";
+import Messaging, {CallState, CurrentUsers, User} from "../public/ts/Messaging";
 import CallStateDisplay from "../public/ts/CallStateDisplay";
 import EditUsernameModal from "../public/ts/ui/EditUsernameModal";
 import {generateRandomUsername} from "../public/ts/names";
 import {BrowserView} from 'react-device-detect';
-import {FaEdit, FaPause, FaPhone, FaPhoneSlash, FaPlay, FaSpinner} from "react-icons/fa";
-import VideoRoomOptions from "../public/ts/ui/videoRoomOptions";
+import {FaEdit} from "react-icons/fa";
 import Layout from "../components/layout";
-import {pickRandomTailwindColor} from "../public/ts/colors";
+import {getAllTailwindColors, pickRandomTailwindColor, TailwindColor} from "../public/ts/colors";
+import CallControls from "../public/ts/ui/CallControls";
+import TextGuide from "../public/ts/ui/TextGuide";
 
-export default function VideoRoom(): ReactElement {
+const VideoRoom = (): ReactElement => {
     const [loading, setLoading] = useState(true)
     const [username, setUsername] = useState('')
-    const [callState, setCallState] = useState<CallState>({
-        connection: "disconnected",
-        currentUsers: new Map()
-    });
+    const [callState, setCallState] = useState<CallState>("disconnected")
+    const [currentUsers, setCurrentUsers] = useState<User[]>(null)
     const renderOutputRef = useRef(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const videoRendererRef = useRef<VideoRenderer>(null);
     const messagingRef = useRef<Messaging>(null);
     const fpsCounterRef = useRef<HTMLDivElement>(null);
     const [callIsConnected, setCallIsConnected] = useState(false);
-    const [color, setColor] = useState(null)
+    const [color, setColor] = useState<TailwindColor>({hexCode: "#000000", name: "black"})
+    const [allColors] = useState(getAllTailwindColors())
 
     const DEFAULT_ORIGINAL_VIDEO_WIDTH = 0
     const [originalVideoOn, setOriginalVideoOn] = useState(false)
@@ -35,9 +35,9 @@ export default function VideoRoom(): ReactElement {
         const randomUsername = generateRandomUsername()
         const randomColor = pickRandomTailwindColor()
         setUsername(randomUsername)
-        setColor(randomColor.name)
+        setColor(randomColor)
 
-        messagingRef.current = new Messaging(randomUsername, randomColor.hexCode, setCallState);
+        messagingRef.current = new Messaging(randomUsername, randomColor, setCallState, setCurrentUsers);
         const frameRate = parseInt(process.env.NEXT_PUBLIC_ABLY_UPLOAD_FRAME_RATE)
         videoRendererRef.current = new VideoRenderer(videoRef.current,
             renderOutputRef.current,
@@ -99,22 +99,24 @@ export default function VideoRoom(): ReactElement {
         setUsername(newUsername)
         videoRendererRef.current.updateUsername(newUsername)
         messagingRef.current.setUsername(newUsername)
-        await messagingRef.current.updatePresence()
-        // TODO save to local storage, and re-read on startup everytime.
+        await messagingRef.current.updatePresenceData()
     }
 
     const closeEditUsernameModalHandler = () => {
         setEditUsernameModalEnabled(false)
     }
 
-    const changeFaceMeshColor = async (newColor: string) => {
+    const changeFaceMeshColor = async (newColor: TailwindColor) => {
         messagingRef.current.setColor(newColor)
-        await messagingRef.current.updatePresence()
-        videoRendererRef.current.changeLocalFaceMeshColor(newColor)
+        setColor(newColor)
+        videoRendererRef.current.updateSceneWithLocalFaceMeshColor(newColor.hexCode)
+        if (callState === "connected") {
+            await messagingRef.current.updatePresenceData()
+        }
     }
 
     const changeFaceMeshSize = (newSize: number) => {
-        videoRendererRef.current.changeLocalFaceMeshSize(newSize)
+        videoRendererRef.current.updateSceneWithLocalFaceMeshSize(newSize)
     }
 
     return (
@@ -132,8 +134,9 @@ export default function VideoRoom(): ReactElement {
                 <div className={"flex-col align-middle"}>
                     <div className={"flex justify-center my-2"}>
                         <p className={"text-gray-700 text-2xl"}>Hey,{" "}</p>
-                        <p className={`text-${color}-600 text-2xl font-bold mx-2`}>{(username && username.length > 0) ? username : "anonymous"}</p>
-                        <button className={`text-${color}-700 hover:text-${color}-400`}
+                        <p style={{color: color.hexCode}}
+                           className={`text-2xl font-bold mx-2`}>{(username && username.length > 0) ? username : "anonymous"}</p>
+                        <button style={{color: color.hexCode}} className={`hover:text-grey-700`}
                                 onClick={toggleEditUsernameModal}>
                             <FaEdit size={16}/></button>
                     </div>
@@ -152,60 +155,19 @@ export default function VideoRoom(): ReactElement {
                         />
                     </div>
                     <div ref={renderOutputRef} className={"flex justify-center"}/>
-                    <div className={"flex justify-center my-2"}>
-                        <div className={"inline-flex p-4 bg-indigo-100 rounded-full"}>
-                            {(callIsConnected) ?
-                                <button
-                                    className={"bg-red-500 hover:bg-red-700 text-white mx-2 font-bold py-4 px-4 rounded-full disabled:bg-gray-500 disabled:cursor-not-allowed"}
-                                    onClick={hangUpHandler} disabled={!callIsConnected}>
-                                    <FaPhoneSlash/>
-                                </button> :
-                                (loading) ? <button
-                                    className={" bg-green-500 hover:bg-green-700 text-white mx-2 font-bold py-2 px-4 rounded-full disabled:bg-gray-500 disabled:cursor-not-allowed"}
-                                    disabled={true}>
-                                    <FaSpinner className={"animate-spin"}/>
-                                </button> : <button
-                                    aria-disabled={!callIsConnected}
-                                    className={"bg-green-500 hover:bg-green-700 text-white mx-2 font-bold py-2 px-4 rounded-full disabled:bg-gray-500 disabled:cursor-not-allowed"}
-                                    onClick={joinCallHandler} disabled={callIsConnected}>
-                                    <FaPhone/>
-                                </button>
-
-                            }
-                            {
-                                (loading) ? <button
-                                    className={" bg-green-500 hover:bg-green-700 text-white mx-2 font-bold py-2 px-4 rounded-full disabled:bg-gray-500 disabled:cursor-not-allowed"}
-                                    disabled={true}>
-                                    <FaSpinner className={"animate-spin"}/>
-                                </button> : <button
-                                    className={"bg-indigo-500 hover:bg-indigo-700 text-white mx-2 font-bold py-4 px-4 rounded-full disabled:bg-gray-500 disabled:cursor-not-allowed"}
-                                    onClick={toggleTracking}>{trackingEnabled ? <FaPause/> : <FaPlay/>}
-                                </button>
-                            }
-
-                            <VideoRoomOptions toggleOriginalVideoFeed={toggleOriginalVideoFeed}
-                                              changeFaceMeshColor={changeFaceMeshColor}
-                                              changeFaceMeshSize={changeFaceMeshSize}/>
-                        </div>
-                    </div>
-                    {CallStateDisplay({callState})}
-                    <div className={"mt-6"}>
-                        <span className={"text-2xl"}>Controls</span>
-                        <ul>
-                            <li><span className={"font-bold"}>Movement: </span>You can use AWSD or arrow keys to move around. Hold shift while moving to move faster.</li>
-                            <li><span className={"font-bold"}>Face shape: </span>You can change your face mesh color and the size of the points.</li>
-                        </ul>
-                    </div>
-                    <div className={"mt-6"}>
-                        <p className={"text-2xl"}>Mobile Support</p>
-                        <span>{"Not currently supported because the Mediapipe library which provides the face mesh doesn't run outside of Desktop Chrome/ Brave."}</span>
-                    </div>
-                    <div className={"mt-6"}>
-                        <p className={"text-2xl"}>Memory leak alert</p>
-                        <span>There is a memory leak in this app, so it gradually takes up 2GB of memory over the course of 10 minutes, and then freezes the app. This is due to MediaPipe not cleaning up its arrays in WASM, see this <a className={"hover:underline text-blue-600"} href={"https://github.com/google/mediapipe/issues/1937"}>GitHub issue</a> for more.</span>
-                    </div>
+                    <CallControls callIsConnected={callIsConnected} hangUpHandler={hangUpHandler} loading={loading}
+                                  joinCallHandler={joinCallHandler} toggleTracking={toggleTracking}
+                                  trackingEnabled={trackingEnabled}
+                                  toggleOriginalVideoFeed={toggleOriginalVideoFeed}
+                                  changeFaceMeshSize={changeFaceMeshSize}
+                                  changeFaceMeshColor={changeFaceMeshColor}
+                                  allColors={allColors}/>
+                    <CallStateDisplay currentUsers={currentUsers}/>
+                    <TextGuide />
                 </div>
             </div>
         </Layout>
     );
 }
+
+export default VideoRoom;

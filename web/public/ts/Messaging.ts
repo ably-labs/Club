@@ -4,53 +4,56 @@ import UserMedia from "./models/UserMedia";
 import FaceMessage from "./models/FaceMessage";
 import {ClientId} from "./models/ClientId";
 import {requestTokenRequest} from "./auth";
+import {TailwindColor} from "./colors";
 
-export type ConnectionState = "connected" | "disconnected"
+export type CallState = "connected" | "disconnected"
+export type CurrentUsers = Map<ClientId, User>;
 
 export type User = {
     clientId: string,
     username: string,
-    color: string
+    color: TailwindColor
 }
 
 interface PresenceData {
     username: string,
-    color: string
+    color: TailwindColor
 }
 
-export interface CallState {
-    connection: ConnectionState,
-    currentUsers: Map<ClientId, User>
-}
 
 /**
- * Uses Ably to send data across all clients.
+ * Involves all network code, for example, connecting to Ably, connecting to a channel,
+ * joining the presence list of a channel, sending or receiving face data.
+ *
+ * Uses Ably to send data.
  */
 export default class Messaging {
     private ablyClient: Realtime;
     private readonly CHANNEL_ID = "rooms:lobby";
     private channel: Types.RealtimeChannelPromise | null = null
-    private readonly setCallState: (value: (((prevState: CallState) => CallState) | CallState)) => void;
+    private readonly setCallState: (value: (((prevState: ("connected" | "disconnected")) => ("connected" | "disconnected")) | "connected" | "disconnected")) => void;
+    private readonly setCurrentUsers: (value: (((prevState: User[]) => User[]) | User[])) => void;
     private connectedClients = new Map<ClientId, User>();
     private readonly clientId: string;
     private username: string;
     private updateRemoteFaceMeshs: (remoteUserMedia: UserMedia) => void
-    private removeRemoteUser: (clientId: ClientId) => void
-    private color: string;
+    private removeRemoteUserHandler: (clientId: ClientId) => void
+    private color: TailwindColor;
 
     constructor(username: string,
-                color: string,
-                setCallState: (value: (((prevState: CallState) => CallState) | CallState)) => void,
+                color: TailwindColor,
+                setCallState: (value: (((prevState: ("connected" | "disconnected")) => ("connected" | "disconnected")) | "connected" | "disconnected")) => void,
+                setCurrentUsers: (value: (((prevState: User[]) => User[]) | User[])) => void,
     ) {
         this.username = username
         this.color = color
         this.setCallState = setCallState
+        this.setCurrentUsers = setCurrentUsers
     }
 
     connect = async (): Promise<void> => {
         try {
             this.ablyClient = new Realtime({
-                useTokenAuth: true,
                 echoMessages: false,
                 authCallback: async (data, callback) => {
                     try {
@@ -66,14 +69,6 @@ export default class Messaging {
                     rewind: "0",
                 }
             })
-
-            if (this.channel) {
-                this.setCallState({
-                    connection: "connected",
-                    currentUsers: new Map()
-                })
-            }
-
         } catch (e) {
             console.error(e)
             throw new Error("Failed to connect to Ably.")
@@ -89,7 +84,7 @@ export default class Messaging {
         this.username = username
     }
 
-    setColor = (color: string): void => {
+    setColor = (color: TailwindColor): void => {
         this.color = color
     }
 
@@ -118,30 +113,42 @@ export default class Messaging {
         this.channel.presence.subscribe("enter", (presenceMessage) => {
             const {username} = presenceMessage.data
             console.log(`User entered: ${username} with id${presenceMessage.clientId}`)
-            this.setUser(presenceMessage)
+            this.updateRemoteUser(presenceMessage)
         })
 
         this.channel.presence.subscribe('present', (presenceMessage) => {
-            this.setUser(presenceMessage)
+            this.updateRemoteUser(presenceMessage)
         })
 
         this.channel.presence.subscribe('update', (presenceMessage) => {
-            this.setUser(presenceMessage)
+            this.updateRemoteUser(presenceMessage)
         })
 
         this.channel.presence.subscribe('leave', (presenceMessage => {
-            this.removeUser(presenceMessage)
+            this.removeRemoteUser(presenceMessage)
         }))
     }
 
+    /**
+     * Becomes present in the lobby, so other users can see the current user,
+     * and associated details like username and color.
+     */
     joinLobbyPresence = async (): Promise<void> => {
-        const presenceMessage: PresenceData = {
+        const presenceData: PresenceData = {
             username: this.username,
             color: this.color
         }
-        await this.channel.presence.enter(presenceMessage)
+        this.setCallState("connected");
+        await this.channel.presence.enter(presenceData)
     }
 
+    /**
+     * Publishes the latest data state to the channel.
+     * @param faceMeshCoordinates
+     * @param faceMeshColor
+     * @param meshPointSize
+     * @param usernameAnchorCoordinates
+     */
     publishToLobby = async (faceMeshCoordinates: Uint16Array,
                             faceMeshColor: string,
                             meshPointSize: number,
@@ -157,17 +164,16 @@ export default class Messaging {
     }
 
     leaveLobbyPresense = async (): Promise<void> => {
-        // TODO confirm i also get 'leave' message, so ill update.
         await this.channel.presence.leave()
         this.connectedClients.delete(this.clientId)
+        this.setCallState("disconnected");
+        this.updateLocalUsernameList()
     }
 
-    async exitRoom(): Promise<void> {
+    async disconnect(): Promise<void> {
         await this.channel.detach()
-        this.setCallState({
-            connection: "disconnected",
-            currentUsers: new Map()
-        })
+        this.updateLocalUsernameList()
+        this.setCallState("disconnected");
     }
 
     close(): void {
@@ -179,35 +185,42 @@ export default class Messaging {
      * @param removeRemoteUser
      */
     setRemoveRemoteUserHandler(removeRemoteUser: (clientId: string) => void): void {
-        this.removeRemoteUser = removeRemoteUser
+        this.removeRemoteUserHandler = removeRemoteUser
     }
 
-    updatePresence = async (): Promise<void> => {
-        const presenceUpdate: PresenceData = {
+    /**
+     * Update the presence data which other users see about the current user. Presence data is used for
+     * infrequently changing data, such as face mesh point size and face color. Regular messages
+     * should be used for more frequent data.
+     */
+    updatePresenceData = async (): Promise<void> => {
+        const presenceData: PresenceData = {
             username: this.username,
             color: this.color
         }
-        await this.channel.presence.update(presenceUpdate)
+        await this.channel.presence.update(presenceData)
     }
 
-    private setUser(presenceMessage: Types.PresenceMessage) {
+    private updateRemoteUser(presenceMessage: Types.PresenceMessage) {
         const clientId = presenceMessage.clientId
         const {username, color} = presenceMessage.data
 
         this.connectedClients.set(clientId, {username, clientId, color})
-        this.setCallState({
-            connection: "connected",
-            currentUsers: this.connectedClients
-        })
+        this.setCallState("connected")
+        this.updateLocalUsernameList()
     }
 
-    private removeUser(presenceMessage: Types.PresenceMessage) {
+    private removeRemoteUser(presenceMessage: Types.PresenceMessage) {
         this.connectedClients.delete(presenceMessage.clientId)
-        this.removeRemoteUser(presenceMessage.clientId)
+        this.removeRemoteUserHandler(presenceMessage.clientId)
+        this.updateLocalUsernameList()
+    }
 
-        this.setCallState({
-            connection: "connected",
-            currentUsers: this.connectedClients
+    private updateLocalUsernameList() {
+        const users: User[] = []
+        this.connectedClients.forEach((user) => {
+            users.push(user);
         })
+        this.setCurrentUsers(users)
     }
 }

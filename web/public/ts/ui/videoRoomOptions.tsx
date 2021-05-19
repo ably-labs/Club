@@ -4,29 +4,14 @@ import {FaEllipsisV} from "react-icons/fa";
 
 interface Props {
     toggleOriginalVideoFeed: (boolean) => void
-    changeFaceMeshColor: (string) => void
     changeFaceMeshSize: (number) => void
 }
 
-const VideoRoomOptions = ({toggleOriginalVideoFeed, changeFaceMeshColor, changeFaceMeshSize}: Props)
+const VideoRoomOptions = ({toggleOriginalVideoFeed, changeFaceMeshSize}: Props)
     : React.ReactElement => {
-    const [colorPickerIsOpen, setColorPickerIsOpen] = useState(false)
     const [faceMeshSizePickerIsOpen, setFaceMeshSizePickerIsOpen] = useState(false)
-    const colorFieldRef = useRef(null)
     const meshPointSizeRef = useRef(null)
-    const [colorField, setColorField] = useState("")
     const [meshPointSizeField, setMeshPointSizeField] = useState("")
-
-    const validRegexPattern = /^#([0-9A-F]{3}){1,2}$/i;
-
-    function changeColor() {
-        if (validRegexPattern.test(colorField) && colorField.length === 7) {
-            changeFaceMeshColor(colorField)
-            setColorPickerIsOpen(false)
-        } else {
-            // TODO show warning.
-        }
-    }
 
     function handleNewMeshSize() {
         const meshSize = parseFloat(meshPointSizeField)
@@ -50,14 +35,6 @@ const VideoRoomOptions = ({toggleOriginalVideoFeed, changeFaceMeshColor, changeF
                 </Menu.Item>
                 <Menu.Item>
                     {(active) => (
-                        <button onClick={() => setColorPickerIsOpen(true)}
-                                className={`${active && "hover:bg-gray-100"}`}>
-                            Change skin tone...
-                        </button>
-                    )}
-                </Menu.Item>
-                <Menu.Item>
-                    {(active) => (
                         <button onClick={() => setFaceMeshSizePickerIsOpen(true)}
                                 className={`${active && "hover:bg-gray-100"}`}>
                             Change face mesh point size...
@@ -72,24 +49,6 @@ const VideoRoomOptions = ({toggleOriginalVideoFeed, changeFaceMeshColor, changeF
                 {/*    )}*/}
                 {/*</Menu.Item>*/}
             </Menu.Items>
-            <Dialog open={colorPickerIsOpen} onClose={() => setColorPickerIsOpen(false)}>
-                <Dialog.Overlay/>
-
-                <Dialog.Title>Change skin tone:</Dialog.Title>
-                <Dialog.Description>
-                    This will change the skin tone for your avatar that you and others will see.
-                </Dialog.Description>
-                <label className="text-2xl" htmlFor={"usernameField"}>New color (Hexcode):</label>
-                <input ref={colorFieldRef} className={"text-2xl text-white-800"} value={colorField}
-                       onChange={(event) => {
-                           setColorField(event.target.value)
-                       }} name={"colorField"} enterKeyHint={"enter"}
-                       placeholder={"#6f00ff"}
-                       aria-label={"Enter a hexcode color..."} required={true}/>
-
-                <button onClick={changeColor}>Change</button>
-                <button onClick={() => setColorPickerIsOpen(false)}>Cancel</button>
-            </Dialog>
             <Dialog open={faceMeshSizePickerIsOpen} onClose={() => setFaceMeshSizePickerIsOpen(false)}>
                 <Dialog.Overlay/>
 
@@ -106,7 +65,7 @@ const VideoRoomOptions = ({toggleOriginalVideoFeed, changeFaceMeshColor, changeF
                        aria-label={"Enter a mesh size between 0 and 5..."} required={true}/>
 
                 <button onClick={handleNewMeshSize}>Change</button>
-                <button onClick={() => setColorPickerIsOpen(false)}>Cancel</button>
+                <button onClick={() => setFaceMeshSizePickerIsOpen(false)}>Cancel</button>
             </Dialog>
         </Menu>
     );

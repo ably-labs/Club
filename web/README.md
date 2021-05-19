@@ -1,30 +1,22 @@
 # Web client
 
-Client application built with [NextJS](https://nextjs.org/), [TensorflowJS](https://www.tensorflow.org/js)
-and [Ably](https://ably.com/).
-
 ## Pre-requisites
 
-- Have an Ably account and get the API key
-- Copy the `.env.local.example` to a new file called `.env.local` and update the api key. (Note, I'm going to replace
-  api key with token authentication soon)
+- Deploy a token authentication service. One is written in `../functions`, which deploys a serverless function with Token Authentication to Firebase cloud functions.
 
 ## Getting started
 
-- Ensure you are in this directory, not the project directory.
+- `cd web`
 - Install dependencies: `npm i`
 - Run development mode: `npm run dev`
+- `cp env.local.example .env.local`
+- Update `NEXT_PUBLIC_CLUB2D_API_URL` in `.env.local` to point to your authentication function
+- Depending on your auth api implementation, Update `auth.ts` to the correct endpoint (`/createTokenRequest`) and use the correct method: `GET` vs `POST`.
 
 ## Deploying to Cloudflare pages
-- Make sure the variables in .env.local are set as environment variables in the cloudflare pages settings.
 
-## Tech used
-
-- Cloud providers
-    - Ably is used to transfer data (messages) between users
-    - Cloudflare Pages is used to host the client app
-    - Firebase cloud functions are used to host a serverless function to generate tokens without leaking the API key in browsers
-- web client
-    - NextJS 
-    - React
-    - ThreeJS
+- Create a cloudflare account
+- Fork the repo, and create a [cloudflare page](https://pages.cloudflare.com/) pointing to your new Github repo.
+- Add these environment variables with their new values (from [getting started](#getting-started)) to your new cloudflare page settings: (the same ones from .env.local):
+  - `NEXT_PUBLIC_CLUB2D_API_URL`
+  - `NEXT_PUBLIC_ABLY_UPLOAD_FRAME_RATE`

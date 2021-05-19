@@ -16,7 +16,7 @@ const CallControls = (props: {
 }): React.ReactElement => {
     return <div className={"flex flex-col"}>
         <div className={"mx-auto"}>
-            <div className={"inline-flex flex p-4 my-4 bg-indigo-100 rounded-full"}>
+            <div className={"inline-flex flex p-4 my-4 bg-red-200 rounded-full"}>
                 {(props.callIsConnected) ?
                     <button
                         className={"bg-red-500 hover:bg-red-700 text-white mx-2 font-bold py-4 px-4 rounded-full disabled:bg-gray-500 disabled:cursor-not-allowed"}
@@ -49,7 +49,7 @@ const CallControls = (props: {
             </div>
         </div>
         <div className={"mx-auto"}>
-            <div className={"inline-flex p-4 bg-indigo-100 rounded-full mb-4"}>
+            <div className={"inline-flex p-4 bg-red-200 rounded-full mb-4"}>
                 {props.allColors.map((tailwindColor: TailwindColor) => (
                     <div onClick={async () => {
                         await props.changeFaceMeshColor(tailwindColor)

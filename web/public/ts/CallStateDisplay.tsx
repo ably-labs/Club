@@ -2,7 +2,7 @@ import React from "react";
 import {User} from "./Messaging";
 
 interface Props {
-    currentUsers: User[] | null
+    currentUsers: User[]
 }
 
 const CallStateDisplay = ({currentUsers}: Props): React.ReactElement => {
@@ -15,13 +15,9 @@ const CallStateDisplay = ({currentUsers}: Props): React.ReactElement => {
         return list
     }
 
-    if (!currentUsers) {
-        return <></>
-    }
-
-    return <div className={"text-center"}>
-        <span className={"text-2xl text-indigo-800"}>{currentUsers.length}</span>
-        <span className={"text-2xl text-indigo-600"}>{ currentUsers.length === 1 ? " user" : " users"} in the room</span>
+    return <div className={"text-center pb-4"}>
+        <span className={"text-2xl text-red-800"}>{currentUsers.length}</span>
+        <span className={"text-2xl text-red-600"}>{ currentUsers.length === 1 ? " user" : " users"} in the room</span>
         <ul>
             {renderCurrentUserList()}
         </ul>

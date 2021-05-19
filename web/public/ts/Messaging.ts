@@ -206,7 +206,9 @@ export default class Messaging {
         const {username, color} = presenceMessage.data
 
         this.connectedClients.set(clientId, {username, clientId, color})
-        this.setCallState("connected")
+        if (this.clientId === clientId) {
+            this.setCallState("connected")
+        }
         this.updateLocalUsernameList()
     }
 

@@ -25,6 +25,9 @@ export interface VideoRendererOptions {
     stopLoadingScreenCallback: (boolean) => void
 }
 
+// const CANVAS_BACKGROUND_COLOR = 0xEEF2FF
+const CANVAS_BACKGROUND_COLOR = 0xFECACA
+
 /**
  * Renders video to a three.js renderer periodically based on its internal state.
  * Update this state to change the render output for the next frame.
@@ -83,10 +86,13 @@ export default class VideoRenderer {
         this.renderingPerformanceStats = new Stats()
         this.renderingPerformanceStats.dom.style.cssText = "position:relative;top:0;left:0;cursor:pointer;opacity:0.9;z-index:10000"
         this.renderingPerformanceStats.showPanel(0);
-        fpsOutput.appendChild(this.renderingPerformanceStats.dom)
+        if (fpsOutput) {
+            fpsOutput.appendChild(this.renderingPerformanceStats.dom)
+        }
 
         this.renderer = new WebGLRenderer({alpha: true});
-        this.renderer.setClearColor(0xEEF2FF, 1)
+
+        this.renderer.setClearColor(CANVAS_BACKGROUND_COLOR, 1)
         this.renderer.setSize(rendererWidth, rendererHeight);
         this.renderer.domElement.style.borderRadius = "16px"
         outputElement.appendChild(this.renderer.domElement)

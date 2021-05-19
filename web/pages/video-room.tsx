@@ -18,7 +18,7 @@ const VideoRoom = (): ReactElement => {
     const [loading, setLoading] = useState(true)
     const [username, setUsername] = useState('')
     const [callState, setCallState] = useState<CallState>("disconnected")
-    const [currentUsers, setCurrentUsers] = useState<User[]>(null)
+    const [currentUsers, setCurrentUsers] = useState<User[]>([])
     const renderOutputRef = useRef(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const videoRendererRef = useRef<VideoRenderer>(null);
@@ -144,7 +144,7 @@ const VideoRoom = (): ReactElement => {
                                    handleSubmit={editUsernameHandler}
                                    handleClose={closeEditUsernameModalHandler}/>
                 <div className={"flex-col align-middle"}>
-                    <div className={"flex justify-center my-2"}>
+                    <div className={"flex justify-center py-2"}>
                         <p className={"text-gray-700 text-2xl"}>Hey,{" "}</p>
                         <p style={{color: color.hexCode}}
                            className={`text-2xl font-bold mx-2`}>{(username && username.length > 0) ? username : "anonymous"}</p>

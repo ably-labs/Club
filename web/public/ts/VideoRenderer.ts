@@ -108,6 +108,7 @@ export default class VideoRenderer {
             0,
             -100000,
             100000);
+        this.offset = this.createRandomOffset();
 
         this.holisticCalculator = new MediapipeHolisticCalculator(this.updateScene);
         // https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/readyState
@@ -444,13 +445,22 @@ export default class VideoRenderer {
         this.holisticCalculator?.close()
     }
 
+    createRandomOffset = (): {up: number, right: number} => {
+        // Multiply height and width by fraction to avoid faces from getting clipped by the canvas on the right and upper side
+        const yOffset = Math.floor(Math.random() * this.cameraHeight * 0.8);
+        const xOffset = Math.floor(Math.random() * this.cameraWidth * 0.7);
+        console.log({xOffset, yOffset})
+        return {
+            up: yOffset,
+            right: xOffset,
+        }
+    }
+
     /**
      * Controls for moving users face on 2D environment
      */
-    private offset = {
-        up: 100,
-        right: 50,
-    }
+    private offset: {up: number, right: number};
+
     moveLocalFace = (direction: Direction, quantity: number): void => {
         const outOfBoundsMultiplier = 1.1 // To allow user's camera to be moved slightly out of boundary.
         switch (direction) {

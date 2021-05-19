@@ -8,9 +8,6 @@ const TextGuide = (): React.ReactElement => {
                 <li><span className={"font-bold"}>Movement: </span>You can use AWSD or arrow keys to move
                     around. Hold shift while moving to move faster.
                 </li>
-                <li><span className={"font-bold"}>Face shape: </span>You can change your face mesh color and
-                    the size of the points.
-                </li>
             </ul>
         </div>
         <div className={"mt-6"}>

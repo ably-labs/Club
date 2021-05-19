@@ -11,6 +11,7 @@ import Layout from "../components/layout";
 import {getAllTailwindColors, pickRandomTailwindColor, TailwindColor} from "../public/ts/colors";
 import CallControls from "../public/ts/ui/CallControls";
 import TextGuide from "../public/ts/ui/TextGuide";
+import ConditionallyRender from "../public/ts/ConditionallyRender";
 
 const VideoRoom = (): ReactElement => {
     const [loading, setLoading] = useState(true)
@@ -155,15 +156,17 @@ const VideoRoom = (): ReactElement => {
                         />
                     </div>
                     <div ref={renderOutputRef} className={"flex justify-center"}/>
-                    <CallControls callIsConnected={callIsConnected} hangUpHandler={hangUpHandler} loading={loading}
-                                  joinCallHandler={joinCallHandler} toggleTracking={toggleTracking}
-                                  trackingEnabled={trackingEnabled}
-                                  toggleOriginalVideoFeed={toggleOriginalVideoFeed}
-                                  changeFaceMeshSize={changeFaceMeshSize}
-                                  changeFaceMeshColor={changeFaceMeshColor}
-                                  allColors={allColors}/>
-                    <CallStateDisplay currentUsers={currentUsers}/>
-                    <TextGuide />
+                    <ConditionallyRender server>
+                        <CallControls callIsConnected={callIsConnected} hangUpHandler={hangUpHandler} loading={loading}
+                                      joinCallHandler={joinCallHandler} toggleTracking={toggleTracking}
+                                      trackingEnabled={trackingEnabled}
+                                      toggleOriginalVideoFeed={toggleOriginalVideoFeed}
+                                      changeFaceMeshSize={changeFaceMeshSize}
+                                      changeFaceMeshColor={changeFaceMeshColor}
+                                      allColors={allColors}/>
+                        <CallStateDisplay currentUsers={currentUsers}/>
+                        <TextGuide/>
+                    </ConditionallyRender>
                 </div>
             </div>
         </Layout>

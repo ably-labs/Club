@@ -45,9 +45,11 @@ const Home = (): React.ReactElement => {
                                                 className={"hover:underline text-red-500"}>{"Ben Butterworth"}</a></p>
 
                 </div>
-                <a className={"hover:opacity-20 flex justify-center my-5"} href={"https://github.com/ben-xD/club/"}>
+                <div className={"flex"}>
+                <a className={"justify-center my-5 mx-auto"} href={"https://github.com/ben-xD/club/"}>
                     <FaGithub className={"hover:opacity-20"} size={32}/>
                 </a>
+                </div>
             </div>
         </div>
         </Layout>

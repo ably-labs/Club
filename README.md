@@ -14,14 +14,15 @@ There are 2 subprojects:
 ## Tech used
 
 - Cloud providers
-  - Ably is used to transfer data between users
-  - Cloudflare Pages is used to host the client application
-  - Firebase cloud functions are used to host a serverless function to generate tokens without revealing/ shipping the API key in browsers
+  - [Ably](https://ably.com) is used to transfer data between users
+  - [Cloudflare Pages](https://pages.cloudflare.com/) is used to host the client application
+  - [Firebase cloud functions](https://firebase.google.com/docs/functions) are used to host a serverless function to generate tokens without revealing/ shipping the API key in browsers
 - Web client
-  - [Ably Javascript/ Typescript SDK](https://www.npmjs.com/package/ably)
-  - [Three.js](https://threejs.org/)
-  - [NextJS](http://nextjs.org/)
-  - [React](https://reactjs.org/)
+  - [Ably Javascript/ Typescript SDK](https://www.npmjs.com/package/ably): Sending 3D faces between users
+  - [MediaPipe](https://mediapipe.dev): Getting 3D face mesh coordinates
+  - [Three.js](https://threejs.org/): Rendering the 3D faces and text
+  - [NextJS](http://nextjs.org/): Building a fast react app efficiently
+  - [React](https://reactjs.org/): UI Rendering and state management
 
 ## Debugging
 

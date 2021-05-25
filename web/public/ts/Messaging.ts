@@ -99,7 +99,8 @@ export default class Messaging {
         });
 
         this.channel.subscribe("face", (message: Types.Message) => {
-            const faceMessage = FaceMessage.decode(message.data)
+            const faceMessage = FaceMessage.decodeFromFlatBuffer(message.data)
+            // const faceMessage = FaceMessage.decode(message.data) // Using custom serializer
             this.updateRemoteFaceMeshs({
                 clientId: message.clientId,
                 username: this.connectedClients.get(message.clientId).username,
@@ -159,8 +160,9 @@ export default class Messaging {
             meshPointSize,
             usernameAnchorCoordinates
         )
-        const int8Array = faceMessage.encode()
-        await this.channel.publish("face", int8Array)
+        // const uint8Array = faceMessage.encode()
+        const uint8Array = faceMessage.encodeIntoFlatBuffer()
+        await this.channel.publish("face", uint8Array)
     }
 
     leaveLobbyPresense = async (): Promise<void> => {

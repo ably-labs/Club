@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@headlessui/react": "^1.1.1",
-    "@mediapipe/holistic": "^0.3.1620694839",
+    "@mediapipe/holistic": "^0.4.1628005088",
     "ably": "^1.2.9",
     "flatbuffers": "^1.12.0",
     "next": "^10.0.0",

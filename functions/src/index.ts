@@ -9,8 +9,8 @@ const expressApp = express();
 // FIXME cors issue
 // const corsOptions: cors.CorsOptions = {
 //   origin: ["http://localhost:8000",
-//     "https://club2d.orth.uk",
-//     "https://*.orth.uk"],
+//     "https://subdomain.example.com",
+//     "https://*.example.com"],
 // };
 expressApp.use(cors({
   origin: true,

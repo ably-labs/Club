@@ -41,7 +41,7 @@ const Home = (): React.ReactElement => {
                         {createLink("Cloudflare Pages", "https://cloudflare.com/")}{", "}
                         {createLink("Firebase Functions", "https://firebase.google.com/docs/functions/")}{", "}
                     </p>
-                    <p className={"mt-3"}>by <a href={"https://orth.uk"}
+                    <p className={"mt-3"}>by <a href={"https://github.com/ben-xD"}
                                                 className={"hover:underline text-red-500"}>{"Ben Butterworth"}</a></p>
 
                 </div>
